@@ -1,20 +1,78 @@
-let running = false;
-const canvas = document.getElementById('simulation');
-const ctx = canvas.getContext('2d');
+//@ts-check
+class DynamicObject {
+    /**
+     * 
+     * @param {string} type 
+     * @param {number} size 
+     * @param {number} x
+     * @param {number} y
+     * @param {{x:number, y:number}} velocity 
+     */
+    constructor(type, size, x, y, velocity){
+        this.type = type;
+        this.size = size;
+        this.x = x;
+        this.y = y;
+        this.velocity = velocity;
+    }
+}
 
+const {canvas, ctx, objectTypeSelect, bounceAtBordersCheckbox, objectTypeDisplayElement, objectPositionElement,
+     objectSpeedInputElement, objectDirectionInputElement} = initPageElements();
 const objects = [];
 
-const objectTypeSelect = document.getElementById("objectType");
-const bounceAtBordersCheckbox = document.getElementById('bounceAtBorders')
+let running = false;
 let currentMousePosition = {x: 0, y: 0};
 let addingObject = false;
 let previewObject = null;
-let selectedObject = null;
+let selectedObject = /**@type {DynamicObject | null} */ (null);
 
 document.addEventListener('DOMContentLoaded', () => {
+    // @ts-ignore
     bounceAtBordersCheckbox.checked = false;
     setInputsDisabled(true);
 });
+
+function initPageElements() {
+    let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
+    if(!canvas) {
+        throw new Error('Element with id "canvas" not found');
+    }
+    
+    let ctx = canvas.getContext("2d");
+    if (!ctx) {
+        throw new Error("2D context not available");
+    }
+
+    let objectTypeSelect = /** @type {HTMLSelectElement} */ (document.getElementById("objectType"));
+    if (!objectTypeSelect) {throw new Error ("Element not found")}
+
+    let bounceAtBordersCheckbox = /** @type {HTMLInputElement} */ (document.getElementById('bounceAtBorders'));
+    if (!bounceAtBordersCheckbox) {throw new Error ("Element not found")};
+
+    let objectTypeDisplayElement = document.getElementById("objectTypeDisplay")
+    if (!objectTypeDisplayElement) {throw new Error ("Element not found")};
+
+    let objectPositionElement = document.getElementById("objectPosition");
+    if(!objectPositionElement) {throw new Error ("Element not found")};
+
+    let objectSpeedInputElement = /** @type {HTMLInputElement} */ (document.getElementById("objectSpeedInput"));
+    if(!objectSpeedInputElement) {throw new Error ("Element not found")};
+
+    let objectDirectionInputElement =  /** @type {HTMLInputElement} */ (document.getElementById("objectDirectionInput"));
+    if(!objectDirectionInputElement) {throw new Error ("Element not found")};
+
+    return {
+        canvas: canvas,
+        ctx: ctx,
+        objectTypeSelect: objectTypeSelect,
+        bounceAtBordersCheckbox: bounceAtBordersCheckbox,
+        objectTypeDisplayElement: objectTypeDisplayElement,
+        objectPositionElement: objectPositionElement,
+        objectSpeedInputElement: objectSpeedInputElement,
+        objectDirectionInputElement: objectDirectionInputElement
+    }
+}
 
 canvas.addEventListener('mousemove', (event) => {
     if (addingObject) {
@@ -26,7 +84,7 @@ canvas.addEventListener('mousemove', (event) => {
 
 canvas.addEventListener('click', (event) => {
     if (addingObject) {
-        addObject(previewObject.type, currentMousePosition.x, currentMousePosition.y);
+        addObject(previewObject.type, 20, currentMousePosition.x, currentMousePosition.y);
         addingObject = false;
         previewObject = null;
     } else {
@@ -50,17 +108,23 @@ function simulate() {
     updateSimulation();
     displayObjectProperties();
     draw();
-    //simulation logic goes here
     requestAnimationFrame(simulate);
+}
+
+/**
+ * 
+ * @param {string} type 
+ * @param {number} x 
+ * @param {number} y 
+ * @param {number} size 
+ */
+function addObject(type,size, x, y) {
+    objects.push(new DynamicObject(type, size, x, y, {x: 0, y: 0}));
 }
 
 function startAddObject() {
     addingObject = true;
-    previewObject = { type: objectTypeSelect.value, x:0 , y: 0 };
-}
-
-function addObject(type, x, y) {
-    objects.push({ type, x, y, color: getColorForType(type), speed: 0.0, direction: 0.0, velocity: {x: 0.0, y: 0.0}});
+    previewObject = {type: objectTypeSelect.value, x:0 , y: 0 };
 }
 
 function getColorForType(type) {
@@ -78,7 +142,7 @@ function selectObject(event) {
             return clickX > obj.x - 10 && clickX < obj.x + 10 && clickY > obj.y -10 && clickY < obj.y + 10;
         }
     });
-    if (selectObject) {
+    if (selectedObject) {
         displayObjectProperties();
         if(!running) {
             setInputsDisabled(false);
@@ -86,17 +150,9 @@ function selectObject(event) {
     }
 }
 
-function displayObjectProperties() {
-    if(selectedObject) {
-        document.getElementById("objectTypeDisplay").innerText = "Type: " + selectedObject.type;
-        document.getElementById("objectPosition").innerText = "Position: (" + selectedObject.x.toFixed(2) + ", " + selectedObject.y.toFixed(2) + ")";
-        document.getElementById("objectSpeedInput").value = selectedObject.speed;
-        document.getElementById("objectDirectionInput").value = selectedObject.direction.toFixed(2);
-    }
-}
 
 function removeSelectedObject() {
-    if (selectObject) {
+    if (selectedObject) {
         const index = objects.indexOf(selectedObject);
         if (index > -1) {
             objects.splice(index, 1);
@@ -107,38 +163,49 @@ function removeSelectedObject() {
 }
 
 function clearObjectProperties() {
-    document.getElementById("objectTypeDisplay").innerText = "";
-    document.getElementById("objectPosition").innerText = "";
-    document.getElementById("objectSpeedInput").value = "";
-    document.getElementById("objectDirectionInput").value = "";
+    objectTypeDisplayElement.innerText = "";
+    objectPositionElement.innerText = "";
+    objectSpeedInputElement.value = "";
+    objectDirectionInputElement.value = "";
     
 }
 
 function updateProperties() {
     if (selectedObject) {
-        var speed = parseFloat(document.getElementById("objectSpeedInput").value);
-        var direction = parseFloat(document.getElementById("objectDirectionInput").value);
-        selectedObject.speed = speed;
-        selectedObject.direction = direction;
+        var speed = parseFloat(objectSpeedInputElement.value);
+        var direction = parseFloat(objectDirectionInputElement.value);
         selectedObject.velocity = velocityFromSpeedAndDirection(speed, direction);
         displayObjectProperties();
     }
 }
 
+function displayObjectProperties() {
+    if(selectedObject) {
+        let direction = directionFromVelocity(selectedObject.velocity);
+        let speed = speedFromVelocity(selectedObject.velocity);
+        
+        objectTypeDisplayElement.innerText = "Type: " + selectedObject.type;
+        objectPositionElement.innerText = "Position: (" 
+        + selectedObject.x.toFixed(2) + ", " + selectedObject.y.toFixed(2) + ")";
+        objectSpeedInputElement.value = speed.toFixed(2);
+        objectDirectionInputElement.value = direction.toFixed(2);
+    }
+}
+
 function setInputsDisabled(disabled) {
-    document.getElementById('objectSpeedInput').disabled = disabled;
-    document.getElementById('objectDirectionInput').disabled = disabled;
-    document.getElementById('objectSpeedInput').style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
-    document.getElementById('objectDirectionInput').style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
+    objectSpeedInputElement.disabled = disabled;
+    objectDirectionInputElement.disabled = disabled;
+    objectSpeedInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
+    objectDirectionInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
 }
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     objects.forEach(obj => {
         if (obj.type === 'sphere') {
-            drawSphere(obj.x, obj.y, obj.color);
+            drawSphere(obj.x, obj.y, "blue", obj.size);
         } else if (obj.type === 'square') {
-            drawSquare(obj.x, obj.y, obj.color);
+            drawSquare(obj.x, obj.y, "red", obj.size);
         }
     })
     if (addingObject && previewObject) {
@@ -173,16 +240,20 @@ function directionFromVelocity(velocity) {
     return degrees;
 }
 
-function drawSphere(x, y, color) {
+function speedFromVelocity(velocity) {
+    return Math.hypot(velocity.x, velocity.y);
+}
+
+function drawSphere(x, y, color, size) {
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.arc(x, y, 10, 0, Math.PI * 2);
+    ctx.arc(x, y, size/2, 0, Math.PI * 2);
     ctx.fill();
 }
 
-function drawSquare(x, y, color) {
+function drawSquare(x, y, color, size) {
     ctx.fillStyle = color;
-    ctx.fillRect(x -10, y -10, 20, 20);
+    ctx.fillRect(x -10, y -10, size, size);
 }
 
 function drawLoop() {
@@ -200,22 +271,18 @@ function updateSimulation() {
                 if (obj.x < 0) {
                     obj.x = 0;
                     obj.velocity.x *= -1;
-                    obj.direction = directionFromVelocity(obj.velocity);
                 }
                 if (obj.x > canvas.width) {
                     obj.x = canvas.width;
                     obj.velocity.x *= -1;
-                    obj.direction = directionFromVelocity(obj.velocity);
                 }
                 if (obj.y < 0) {
                     obj.y = 0;
                     obj.velocity.y *= -1;
-                    obj.direction = directionFromVelocity(obj.velocity);
                 }
                 if (obj.y > canvas.height) {
                     obj.y = canvas.height;
                     obj.velocity.y *= -1;
-                    obj.direction = directionFromVelocity(obj.velocity);
                 }
             } else {
                 // Keep objects within canvas bounds without bouncing
@@ -227,7 +294,5 @@ function updateSimulation() {
     })
 
 }
-
-
 
 drawLoop();
