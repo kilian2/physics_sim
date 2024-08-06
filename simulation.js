@@ -1,6 +1,3 @@
-
-
-
 let running = false;
 const canvas = document.getElementById('simulation');
 const ctx = canvas.getContext('2d');
@@ -16,6 +13,7 @@ let selectedObject = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     bounceAtBordersCheckbox.checked = false;
+    setInputsDisabled(true);
 });
 
 canvas.addEventListener('mousemove', (event) => {
@@ -82,6 +80,9 @@ function selectObject(event) {
     });
     if (selectObject) {
         displayObjectProperties();
+        if(!running) {
+            setInputsDisabled(false);
+        }
     }
 }
 
