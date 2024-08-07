@@ -6,73 +6,91 @@
     <title>Physics Simulations</title>
     <style>
         body {font-family: Arial, sans-serif; }
+        label {
+            display: block;
+        }
+        input, 
+        label {
+            margin: 0.4rem 0;
+        }
         .container {
             display: flex;
             justify-content: center;
             align-items: flex-start;
             margin: 0px auto;
         }
+        .simulationControll {
+            margin-bottom: 10px;
+            margin-right: 10px;
+        }
+        .selectedObjectProperty{
+            margin-bottom: 10px;
+            margin-right: 10px;
+        }
         #canvas {
             width: 100%;
             height: 100%;
             border: 1px solid #000;
          }
-         #canvas-wrap {position:relative}
-         #overlay {position:absolute; top:10px; left:10px;}
-        .controls {
-            margin-left: 20px;
-            padding: 10px;
-            display: flex;
-            flex-direction: row;
-            align-items: center;
+        #canvas-wrap {position:relative}
+        #overlay {position:absolute; top:10px; left:10px;}
+        #selectedObjectPropertiesContainer {
+            margin-left: 10px;
         }
-        .controls select, .controls button {
-            margin-bottom: 10px;
+        #simulationControllsContainer{
+            margin-left: 10px;
         }
-        .controls select {
+        #newObjectProperties {
             margin-right: 10px;
-        }
-        .properties {
-            text-align: left;
-            padding: 20px;
-        }
-        .simulationControlls{
-            text-align: left;
-            padding: 20px;
         }
     </style>
 </head>
 <body>
-    <div class="container">      
+    <div class="container">
+        <div id="newObjectProperties">
+            <h3>New Object Properties</h3>
+            <div>
+                Type:
+                <select id="objectType">
+                    <option value="sphere">Sphere</option>
+                    <option value="square">Square</option>
+                </select>
+            </div>
+            <div>
+                Size:
+                <input type="number" id="objectSizeInput" value="20">
+            </div>
+        </div>
         <div id="canvas-wrap">
             <canvas id="canvas" width="800" height="800"></canvas>
             <div id="overlay">
-                <div class="controls">
-                    <select id="objectType">
-                        <option value="sphere">Sphere</option>
-                        <option value="square">Square</option>
-                    </select>
-                    <button onclick="startAddObject()">Add Object</button>      
-                </div>
+                <button id="addObject" onclick="startAddObject()">Add Object</button>      
             </div>
         </div> 
-        <div class="properties" id="properties">
+        <div id="selectedObjectPropertiesContainer">
             <h3>Selected Object Properties</h3>
             <p id="objectPosition"></p>
-            <p id="objectTypeDisplay"></p>
-            <p>Speed: <input type="number" id="objectSpeedInput"></p>
-            <p>Direction: <input type="number" id="objectDirectionInput"></p>
-            <button onclick="removeSelectedObject()">Remove Object</button>
-            <button onclick="updateProperties()">Update Properties</buton>
+            <p id="objectTypeDisplay"></p> 
+            <div class="selectedObjectProperty">
+                <label for="objectSpeedInput">Speed:</label>
+                <input type="number" id="objectSpeedInput">
+            </div>
+            <div class="selectedObjectProperty">
+                <label for="objectDirectionInput">Direction:</label>
+                <input type="number" id="objectDirectionInput">
+            </div>
+            <div class="selectedObjectProperty">
+                <button class="selectedObjectProperty" onclick="removeSelectedObject()">Remove Object</button>
+                <button class="selectedObjectProperty" onclick="updateProperties()">Update Properties</buton>
+            </div>
         </div>
-        <div class="simulationControlls">
+        <div id="simulationControllsContainer">
             <h3>Simulation Controlls</h3>
-            <button onclick="startSimulation()">Start</button>
+            <button class="simulationControll" onclick="startSimulation()">Start</button>
             <button onclick="stopSimulation()">Stop</button>
             <div>
-                <label>
-                    <input type="checkbox" id="bounceAtBorders">Bounce at Borders
-                </label>
+                Bounce at Borders: 
+                <input type="checkbox" id="bounceAtBorders">
             </div>
         </div>
     </div>

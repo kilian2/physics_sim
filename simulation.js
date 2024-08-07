@@ -18,7 +18,7 @@ class DynamicObject {
 }
 
 const {canvas, ctx, objectTypeSelect, bounceAtBordersCheckbox, objectTypeDisplayElement, objectPositionElement,
-     objectSpeedInputElement, objectDirectionInputElement} = initPageElements();
+     objectSpeedInputElement, objectDirectionInputElement, objectSizeInputElement} = initPageElements();
 const objects = [];
 
 let running = false;
@@ -28,9 +28,26 @@ let previewObject = null;
 let selectedObject = /**@type {DynamicObject | null} */ (null);
 
 document.addEventListener('DOMContentLoaded', () => {
-    // @ts-ignore
     bounceAtBordersCheckbox.checked = false;
     setInputsDisabled(true);
+});
+
+canvas.addEventListener('mousemove', (event) => {
+    if (addingObject) {
+        const rect = canvas.getBoundingClientRect();
+        currentMousePosition.x = event.clientX - rect.left;
+        currentMousePosition.y = event.clientY - rect.top;
+    }
+});
+
+canvas.addEventListener('click', (event) => {
+    if (addingObject) {
+        addObject(previewObject.type, parseFloat(objectSizeInputElement.value), currentMousePosition.x, currentMousePosition.y);
+        addingObject = false;
+        previewObject = null;
+    } else {
+        selectObject(event);
+    }
 });
 
 function initPageElements() {
@@ -62,6 +79,9 @@ function initPageElements() {
     let objectDirectionInputElement =  /** @type {HTMLInputElement} */ (document.getElementById("objectDirectionInput"));
     if(!objectDirectionInputElement) {throw new Error ("Element not found")};
 
+    let objectSizeInputElement = /** @type {HTMLInputElement}*/ (document.getElementById("objectSizeInput"));
+    if(!objectSizeInputElement) {throw new Error ("Element not found")};
+
     return {
         canvas: canvas,
         ctx: ctx,
@@ -70,27 +90,10 @@ function initPageElements() {
         objectTypeDisplayElement: objectTypeDisplayElement,
         objectPositionElement: objectPositionElement,
         objectSpeedInputElement: objectSpeedInputElement,
-        objectDirectionInputElement: objectDirectionInputElement
+        objectDirectionInputElement: objectDirectionInputElement,
+        objectSizeInputElement: objectSizeInputElement
     }
 }
-
-canvas.addEventListener('mousemove', (event) => {
-    if (addingObject) {
-        const rect = canvas.getBoundingClientRect();
-        currentMousePosition.x = event.clientX - rect.left;
-        currentMousePosition.y = event.clientY - rect.top;
-    }
-});
-
-canvas.addEventListener('click', (event) => {
-    if (addingObject) {
-        addObject(previewObject.type, 20, currentMousePosition.x, currentMousePosition.y);
-        addingObject = false;
-        previewObject = null;
-    } else {
-        selectObject(event);
-    }
-});
 
 function startSimulation() {
     running = true;
@@ -111,13 +114,6 @@ function simulate() {
     requestAnimationFrame(simulate);
 }
 
-/**
- * 
- * @param {string} type 
- * @param {number} x 
- * @param {number} y 
- * @param {number} size 
- */
 function addObject(type,size, x, y) {
     objects.push(new DynamicObject(type, size, x, y, {x: 0, y: 0}));
 }
@@ -150,7 +146,6 @@ function selectObject(event) {
     }
 }
 
-
 function removeSelectedObject() {
     if (selectedObject) {
         const index = objects.indexOf(selectedObject);
@@ -172,8 +167,8 @@ function clearObjectProperties() {
 
 function updateProperties() {
     if (selectedObject) {
-        var speed = parseFloat(objectSpeedInputElement.value);
-        var direction = parseFloat(objectDirectionInputElement.value);
+        let speed = parseFloat(objectSpeedInputElement.value);
+        let direction = parseFloat(objectDirectionInputElement.value);
         selectedObject.velocity = velocityFromSpeedAndDirection(speed, direction);
         displayObjectProperties();
     }
@@ -214,14 +209,15 @@ function draw() {
 }
 
 function drawPreviewObject() {
+    let size = parseFloat(objectSizeInputElement.value);
     if ( previewObject.type === 'sphere') {
         ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
         ctx.beginPath();
-        ctx.arc(currentMousePosition.x, currentMousePosition.y, 10, 0, Math.PI * 2);
+        ctx.arc(currentMousePosition.x, currentMousePosition.y, size/2, 0, Math.PI * 2);
         ctx.fill();
     } else if (previewObject.type === 'square') {
         ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.fillRect(currentMousePosition.x -10, currentMousePosition.y -10, 20, 20);
+        ctx.fillRect(currentMousePosition.x -10, currentMousePosition.y -10, size, size);
     }
     
 }
@@ -292,7 +288,6 @@ function updateSimulation() {
                 if (obj.y > canvas.height) obj.y = canvas.height;
             }
     })
-
 }
 
 drawLoop();
