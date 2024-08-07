@@ -162,7 +162,6 @@ function clearObjectProperties() {
     objectPositionElement.innerText = "";
     objectSpeedInputElement.value = "";
     objectDirectionInputElement.value = "";
-    
 }
 
 function updateProperties() {
@@ -287,7 +286,58 @@ function updateSimulation() {
                 if (obj.y < 0) obj.y = 0;
                 if (obj.y > canvas.height) obj.y = canvas.height;
             }
+            handleCollisions();
     })
+}
+
+function handleCollisions() {
+    for (let i = 0; i < objects.length -1; i++) {
+        for (let j = i+1; j < objects.length; j++) {
+            const obj1 = /** @type {DynamicObject} */ (objects[i]);
+            const obj2 = /** @type {DynamicObject} */ (objects[j]);
+
+            const relativeVelocityX = obj2.velocity.x - obj1.velocity.x;
+            const relativeVelocityY = obj2.velocity.y - obj1.velocity.y;
+            
+            // Calculate distance components
+            const distanceX = obj2.x - obj1.x;
+            const distanceY = obj2.y - obj1.y;
+            
+            // Check if they are closing in on each other
+            const closingInX = distanceX * relativeVelocityX < 0;
+            const closingInY = distanceY * relativeVelocityY < 0;
+            
+            if (!(closingInX || closingInY)) {
+                continue; // Skip further calculations if not closing in
+            }
+
+            const distanceSquared = distanceX ** 2 + distanceY ** 2;
+            const combinedRadius = (obj1.size / 2) + (obj2.size / 2);
+            const combinedRadiusSquared = combinedRadius ** 2;
+
+            if (distanceSquared < combinedRadiusSquared) {
+                const distance = Math.sqrt(distanceSquared);
+                const normalX = distanceX / distance;
+                const normalY = distanceY / distance;
+                const velocityAlongNormal = relativeVelocityX * normalX + relativeVelocityY * normalY;
+
+                //No collision handling required if objects are moving apart
+                if(velocityAlongNormal > 0) continue;
+
+                //Calvulate new velocities
+                const newObj1VelocityX = obj1.velocity.x + (velocityAlongNormal * normalX);
+                const newObj1VelocityY = obj1.velocity.y + (velocityAlongNormal * normalY);
+                const newObj2VelocityX = obj2.velocity.x - (velocityAlongNormal * normalX);
+                const newObj2VelocityY = obj2.velocity.y - (velocityAlongNormal * normalY);
+                
+                //Update velocitys 
+                obj1.velocity.x = newObj1VelocityX;
+                obj1.velocity.y = newObj1VelocityY;
+                obj2.velocity.x = newObj2VelocityX;
+                obj2.velocity.y = newObj2VelocityY;
+            }
+        }
+    }
 }
 
 drawLoop();
