@@ -57,7 +57,7 @@ let /** @type {DynamicObject | undefined} */ selectedObject = undefined;
 
 document.addEventListener('DOMContentLoaded', () => {
     addEventListeners();
-    bounceAtBordersCheckbox.checked = false;
+    bounceAtBordersCheckbox.checked = true;
     setInputsDisabled(true);
     newObjectMassInputElement.value = getMassForNewObject().toFixed(2);
 });
