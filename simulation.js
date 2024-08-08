@@ -355,33 +355,58 @@ function handleCollisions() {
                 continue; // Skip further calculations if not closing in
             }
 
-            const distanceSquared = distanceX ** 2 + distanceY ** 2;
-            const combinedRadius = (obj1.size / 2) + (obj2.size / 2);
-            const combinedRadiusSquared = combinedRadius ** 2;
+            const collisionNormal = checkCollision(obj1, obj2);
 
-            if (distanceSquared < combinedRadiusSquared) {
-                const distance = Math.sqrt(distanceSquared);
-                const normalX = distanceX / distance;
-                const normalY = distanceY / distance;
-                const velocityAlongNormal = relativeVelocityX * normalX + relativeVelocityY * normalY;
-
-                //No collision handling required if objects are moving apart
-                if(velocityAlongNormal > 0) continue;
-
-                //Calvulate new velocities
-                const newObj1VelocityX = obj1.velocity.x + (velocityAlongNormal * normalX);
-                const newObj1VelocityY = obj1.velocity.y + (velocityAlongNormal * normalY);
-                const newObj2VelocityX = obj2.velocity.x - (velocityAlongNormal * normalX);
-                const newObj2VelocityY = obj2.velocity.y - (velocityAlongNormal * normalY);
-                
-                //Update velocitys 
-                obj1.velocity.x = newObj1VelocityX;
-                obj1.velocity.y = newObj1VelocityY;
-                obj2.velocity.x = newObj2VelocityX;
-                obj2.velocity.y = newObj2VelocityY;
+            if (collisionNormal) {
+                resolveCollision(obj1, obj2, collisionNormal);
             }
         }
     }
 }
 
+function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2) {
+    if (obj1.type === "sphere" && obj2.type === "sphere") {
+        return checkSphereSphereCollision(obj1, obj2);
+    }
+
+}
+
+function checkSphereSphereCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2) {
+    const distanceX = obj2.x - obj1.x;
+    const distanceY = obj2.y - obj1.y;
+    const distanceSquared = distanceX ** 2 + distanceY ** 2;
+    const combinedRadius = (obj1.size / 2) + (obj2.size / 2);
+    
+    if (distanceSquared < combinedRadius ** 2) {
+        const distance = Math.sqrt(distanceSquared);
+        return {x: distanceX / distance, y: distanceY / distance};
+    }
+
+    return null;
+}
+
+function resolveCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2, /** @type {{x: number, y: number}} */ normal) {
+    const relativeVelocityX = obj2.velocity.x - obj1.velocity.x;
+    const relativeVelocityY = obj2.velocity.y - obj1.velocity.y;
+    const velocityAlongNormal = relativeVelocityX * normal.x + relativeVelocityY * normal.y;
+
+    //No collision handling required if objects are moving apart
+    if(velocityAlongNormal > 0) return;
+
+    //Calvulate new velocities
+    const newObj1VelocityX = obj1.velocity.x + (velocityAlongNormal * normal.x);
+    const newObj1VelocityY = obj1.velocity.y + (velocityAlongNormal * normal.y);
+    const newObj2VelocityX = obj2.velocity.x - (velocityAlongNormal * normal.x);
+    const newObj2VelocityY = obj2.velocity.y - (velocityAlongNormal * normal.y);
+    
+    //Update velocitys 
+    obj1.velocity.x = newObj1VelocityX;
+    obj1.velocity.y = newObj1VelocityY;
+    obj2.velocity.x = newObj2VelocityX;
+    obj2.velocity.y = newObj2VelocityY;
+    
+}
+
+
 drawLoop();
+
