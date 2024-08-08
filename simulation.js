@@ -115,7 +115,7 @@ function addEventListeners() {
     newObjectSizeInputElement.addEventListener('input', () => {
         const size = parseFloat(newObjectSizeInputElement.value);
         if (!isNaN(size) && size >= 0) {
-            newObjectMassInputElement.value = (size*size).toFixed(2);
+            newObjectMassInputElement.value = getMassForNewObject().toFixed(2);
         }
     });
 
