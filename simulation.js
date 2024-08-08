@@ -6,19 +6,22 @@ class DynamicObject {
      * @param {number} size 
      * @param {number} x
      * @param {number} y
-     * @param {{x:number, y:number}} velocity 
+     * @param {{x:number, y:number}} velocity
+     * @param {number} mass  
      */
-    constructor(type, size, x, y, velocity){
+    constructor(type, size, x, y, velocity, mass){
         this.type = type;
         this.size = size;
         this.x = x;
         this.y = y;
         this.velocity = velocity;
+        this.mass = mass;
     }
 }
 
 const {canvas, ctx, objectTypeSelect, bounceAtBordersCheckbox, objectTypeDisplayElement, objectPositionElement,
-     objectSpeedInputElement, objectDirectionInputElement, objectSizeInputElement} = initPageElements();
+     objectSpeedInputElement, objectDirectionInputElement, newObjectSizeInputElement, newObjectMassInputElement,
+     objectMassInputElement} = initPageElements();
 const objects = [];
 
 let running = false;
@@ -28,71 +31,97 @@ let previewObject = null;
 let selectedObject = /**@type {DynamicObject | null} */ (null);
 
 document.addEventListener('DOMContentLoaded', () => {
+    addEventListeners();
     bounceAtBordersCheckbox.checked = false;
     setInputsDisabled(true);
-});
-
-canvas.addEventListener('mousemove', (event) => {
-    if (addingObject) {
-        const rect = canvas.getBoundingClientRect();
-        currentMousePosition.x = event.clientX - rect.left;
-        currentMousePosition.y = event.clientY - rect.top;
-    }
-});
-
-canvas.addEventListener('click', (event) => {
-    if (addingObject) {
-        addObject(previewObject.type, parseFloat(objectSizeInputElement.value), currentMousePosition.x, currentMousePosition.y);
-        addingObject = false;
-        previewObject = null;
-    } else {
-        selectObject(event);
-    }
+    newObjectMassInputElement.value = getMassForNewObject().toFixed(2);
 });
 
 function initPageElements() {
-    let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
+    const canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("canvas"));
     if(!canvas) {
         throw new Error('Element with id "canvas" not found');
     }
     
-    let ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
     if (!ctx) {
         throw new Error("2D context not available");
     }
 
-    let objectTypeSelect = /** @type {HTMLSelectElement} */ (document.getElementById("objectType"));
+    const objectTypeSelect = /** @type {HTMLSelectElement} */ (document.getElementById("objectType"));
     if (!objectTypeSelect) {throw new Error ("Element not found")}
 
-    let bounceAtBordersCheckbox = /** @type {HTMLInputElement} */ (document.getElementById('bounceAtBorders'));
+    const bounceAtBordersCheckbox = /** @type {HTMLInputElement} */ (document.getElementById('bounceAtBorders'));
     if (!bounceAtBordersCheckbox) {throw new Error ("Element not found")};
 
-    let objectTypeDisplayElement = document.getElementById("objectTypeDisplay")
+    const objectTypeDisplayElement = document.getElementById("objectTypeDisplay")
     if (!objectTypeDisplayElement) {throw new Error ("Element not found")};
 
-    let objectPositionElement = document.getElementById("objectPosition");
+    const objectPositionElement = document.getElementById("objectPosition");
     if(!objectPositionElement) {throw new Error ("Element not found")};
 
-    let objectSpeedInputElement = /** @type {HTMLInputElement} */ (document.getElementById("objectSpeedInput"));
+    const objectSpeedInputElement = /** @type {HTMLInputElement} */ (document.getElementById("objectSpeedInput"));
     if(!objectSpeedInputElement) {throw new Error ("Element not found")};
 
-    let objectDirectionInputElement =  /** @type {HTMLInputElement} */ (document.getElementById("objectDirectionInput"));
+    const objectDirectionInputElement =  /** @type {HTMLInputElement} */ (document.getElementById("objectDirectionInput"));
     if(!objectDirectionInputElement) {throw new Error ("Element not found")};
 
-    let objectSizeInputElement = /** @type {HTMLInputElement}*/ (document.getElementById("objectSizeInput"));
-    if(!objectSizeInputElement) {throw new Error ("Element not found")};
+    const newObjectSizeInputElement = /** @type {HTMLInputElement}*/ (document.getElementById("newObjectSizeInput"));
+    if(!newObjectSizeInputElement) {throw new Error ("Element not found")};
+
+    const newObjectMassInputElement = /** @type {HTMLInputElement}*/ (document.getElementById("newObjectMassInput"));
+    if(!newObjectMassInputElement) {throw new Error ("Element not found")};
+
+    const objectMassInputElement = /** @type {HTMLInputElement} */ (document.getElementById("objectMassInput"));
+    if(!objectMassInputElement) {throw new Error ("Element not found")};
 
     return {
-        canvas: canvas,
-        ctx: ctx,
-        objectTypeSelect: objectTypeSelect,
-        bounceAtBordersCheckbox: bounceAtBordersCheckbox,
-        objectTypeDisplayElement: objectTypeDisplayElement,
-        objectPositionElement: objectPositionElement,
-        objectSpeedInputElement: objectSpeedInputElement,
-        objectDirectionInputElement: objectDirectionInputElement,
-        objectSizeInputElement: objectSizeInputElement
+        canvas,
+        ctx,
+        objectTypeSelect,
+        bounceAtBordersCheckbox,
+        objectTypeDisplayElement,
+        objectPositionElement,
+        objectSpeedInputElement,
+        objectDirectionInputElement,
+        newObjectSizeInputElement,
+        newObjectMassInputElement,
+        objectMassInputElement
     }
+}
+
+function addEventListeners() {
+    
+    canvas.addEventListener('mousemove', (event) => {
+        if (addingObject) {
+            const rect = canvas.getBoundingClientRect();
+            currentMousePosition.x = event.clientX - rect.left;
+            currentMousePosition.y = event.clientY - rect.top;
+        }
+    });
+    
+    canvas.addEventListener('click', (event) => {
+        if (addingObject) {
+            const size =  parseFloat(newObjectSizeInputElement.value);
+            const mass = parseFloat(newObjectMassInputElement.value);   
+            objects.push(new DynamicObject(previewObject.type, size, currentMousePosition.x, currentMousePosition.y, {x: 0, y: 0}, mass));
+            addingObject = false;
+            previewObject = null;
+        } else {
+            selectObject(event);
+        }
+    });
+
+    newObjectSizeInputElement.addEventListener('input', () => {
+        const size = parseFloat(newObjectSizeInputElement.value);
+        if (!isNaN(size) && size >= 0) {
+            newObjectMassInputElement.value = (size*size).toFixed(2);
+        }
+    });
+
+    objectTypeSelect.addEventListener('input', () => {
+        newObjectMassInputElement.value = getMassForNewObject().toFixed(2);
+    })
 }
 
 function startSimulation() {
@@ -114,10 +143,6 @@ function simulate() {
     requestAnimationFrame(simulate);
 }
 
-function addObject(type,size, x, y) {
-    objects.push(new DynamicObject(type, size, x, y, {x: 0, y: 0}));
-}
-
 function startAddObject() {
     addingObject = true;
     previewObject = {type: objectTypeSelect.value, x:0 , y: 0 };
@@ -125,6 +150,19 @@ function startAddObject() {
 
 function getColorForType(type) {
     return type === 'sphere' ? 'blue' : 'red';
+}
+
+function getMassForNewObject() {
+    const type = objectTypeSelect.value;
+    const size = parseFloat(newObjectSizeInputElement.value);
+    let mass = 0;
+    if (type === "sphere") {
+        mass = Math.PI * ((size / 2) ** 2);
+    }
+    else if (type === "square") {
+        mass = size ** 2
+    }
+    return mass;
 }
 
 function selectObject(event) {
@@ -162,13 +200,16 @@ function clearObjectProperties() {
     objectPositionElement.innerText = "";
     objectSpeedInputElement.value = "";
     objectDirectionInputElement.value = "";
+    objectMassInputElement.value = "";
 }
 
 function updateProperties() {
     if (selectedObject) {
-        let speed = parseFloat(objectSpeedInputElement.value);
-        let direction = parseFloat(objectDirectionInputElement.value);
+        const speed = parseFloat(objectSpeedInputElement.value);
+        const direction = parseFloat(objectDirectionInputElement.value);
+        const mass = parseFloat(objectMassInputElement.value);
         selectedObject.velocity = velocityFromSpeedAndDirection(speed, direction);
+        selectedObject.mass = mass;
         displayObjectProperties();
     }
 }
@@ -183,14 +224,17 @@ function displayObjectProperties() {
         + selectedObject.x.toFixed(2) + ", " + selectedObject.y.toFixed(2) + ")";
         objectSpeedInputElement.value = speed.toFixed(2);
         objectDirectionInputElement.value = direction.toFixed(2);
+        objectMassInputElement.value = selectedObject.mass.toFixed(2);
     }
 }
 
 function setInputsDisabled(disabled) {
     objectSpeedInputElement.disabled = disabled;
     objectDirectionInputElement.disabled = disabled;
+    objectMassInputElement.disabled = disabled;
     objectSpeedInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
     objectDirectionInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
+    objectMassInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
 }
 
 function draw() {
@@ -208,7 +252,7 @@ function draw() {
 }
 
 function drawPreviewObject() {
-    let size = parseFloat(objectSizeInputElement.value);
+    let size = parseFloat(newObjectSizeInputElement.value);
     if ( previewObject.type === 'sphere') {
         ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
         ctx.beginPath();

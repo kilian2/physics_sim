@@ -16,7 +16,7 @@
         .container {
             display: flex;
             justify-content: center;
-            align-items: flex-start;
+            align-items: flex;
             margin: 0px auto;
         }
         .simulationControll {
@@ -26,6 +26,11 @@
         .selectedObjectProperty{
             margin-bottom: 10px;
             margin-right: 10px;
+        }
+        .input-item{
+            display: grid;
+            align-items: center;
+            justify-content: space-between;
         }
         #canvas {
             width: 100%;
@@ -49,16 +54,20 @@
     <div class="container">
         <div id="newObjectProperties">
             <h3>New Object Properties</h3>
-            <div>
-                Type:
+            <div class="input-item">
+                <label>Type:</label>
                 <select id="objectType">
                     <option value="sphere">Sphere</option>
                     <option value="square">Square</option>
                 </select>
             </div>
-            <div>
-                Size:
-                <input type="number" id="objectSizeInput" value="20">
+            <div class="input-item">
+                <label>Size:</label>
+                <input type="number" id="newObjectSizeInput" value="20">
+            </div>
+            <div class="input-item">
+                <label>Mass:</label>
+                <input type="number" id="newObjectMassInput">
             </div>
         </div>
         <div id="canvas-wrap">
@@ -78,6 +87,10 @@
             <div class="selectedObjectProperty">
                 <label for="objectDirectionInput">Direction:</label>
                 <input type="number" id="objectDirectionInput">
+            </div>
+            <div class="selectedObjectProperty">
+                <label for="selectedObjectPropertyInput">Mass:</label>
+                <input type="number" id="objectMassInput">
             </div>
             <div class="selectedObjectProperty">
                 <button class="selectedObjectProperty" onclick="removeSelectedObject()">Remove Object</button>
