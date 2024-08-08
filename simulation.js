@@ -393,18 +393,25 @@ function resolveCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicO
     //No collision handling required if objects are moving apart
     if(velocityAlongNormal > 0) return;
 
+    //restituion = 1 -> perfect elastic collisions -> all kinetic energy is conserved
+    //restituion = 0 -> perfect inelastic collisions -> no kinetic energy is conserved
+    const restituion = 1;
+
+    const impulseScalar = - (1 + restituion) * velocityAlongNormal / (1 / obj1.mass + 1 / obj2.mass);
+    const impulseX = impulseScalar * normal.x;
+    const impulseY = impulseScalar * normal.y;
+
     //Calvulate new velocities
-    const newObj1VelocityX = obj1.velocity.x + (velocityAlongNormal * normal.x);
-    const newObj1VelocityY = obj1.velocity.y + (velocityAlongNormal * normal.y);
-    const newObj2VelocityX = obj2.velocity.x - (velocityAlongNormal * normal.x);
-    const newObj2VelocityY = obj2.velocity.y - (velocityAlongNormal * normal.y);
+    const newObj1VelocityX = obj1.velocity.x - impulseX / obj1.mass;
+    const newObj1VelocityY = obj1.velocity.y - impulseY / obj1.mass;
+    const newObj2VelocityX = obj2.velocity.x + impulseX / obj2.mass;
+    const newObj2VelocityY = obj2.velocity.y + impulseY / obj2.mass;
     
     //Update velocitys 
     obj1.velocity.x = newObj1VelocityX;
     obj1.velocity.y = newObj1VelocityY;
     obj2.velocity.x = newObj2VelocityX;
-    obj2.velocity.y = newObj2VelocityY;
-    
+    obj2.velocity.y = newObj2VelocityY;   
 }
 
 
