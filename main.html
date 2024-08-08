@@ -73,7 +73,7 @@
         <div id="canvas-wrap">
             <canvas id="canvas" width="800" height="800"></canvas>
             <div id="overlay">
-                <button id="addObject" onclick="startAddObject()">Add Object</button>      
+                <button id="addObject">Add Object</button>      
             </div>
         </div> 
         <div id="selectedObjectPropertiesContainer">
@@ -93,20 +93,20 @@
                 <input type="number" id="objectMassInput">
             </div>
             <div class="selectedObjectProperty">
-                <button class="selectedObjectProperty" onclick="removeSelectedObject()">Remove Object</button>
-                <button class="selectedObjectProperty" onclick="updateProperties()">Update Properties</buton>
+                <button class="selectedObjectProperty" id="removeSelectedObject">Remove Object</button>
+                <button class="selectedObjectProperty" id="updateProperties">Update Properties</buton>
             </div>
         </div>
         <div id="simulationControllsContainer">
             <h3>Simulation Controlls</h3>
-            <button class="simulationControll" onclick="startSimulation()">Start</button>
-            <button onclick="stopSimulation()">Stop</button>
+            <button id="startSimulation">Start</button>
+            <button id="stopSimulation">Stop</button>
             <div>
                 Bounce at Borders: 
                 <input type="checkbox" id="bounceAtBorders">
             </div>
         </div>
     </div>
-    <script src="simulation.js"></script>
+    <script type="module" src="./main.js"></script>
 </body>
 </html>

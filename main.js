@@ -1,4 +1,7 @@
 //@ts-check
+
+import { checkLineLineCollision } from './util.js';
+
 class DynamicObject {
     /**
      * @param {ObjectType} type 
@@ -15,6 +18,8 @@ class DynamicObject {
         this.y = y;
         this.velocity = velocity;
         this.mass = mass;
+        this.angle = 0;
+        this.angularVelocity = 0;
     }
 }
 
@@ -147,6 +152,13 @@ function addEventListeners() {
     objectTypeSelect.addEventListener('input', () => {
         newObjectMassInputElement.value = getMassForNewObject().toFixed(2);
     })
+
+    document.getElementById("startSimulation")?.addEventListener('click', startSimulation);
+    document.getElementById("stopSimulation")?.addEventListener('click', stopSimulation);
+    document.getElementById("addObject")?.addEventListener('click', startAddObject);
+    document.getElementById("removeSelectedObject")?.addEventListener('click', removeSelectedObject);
+    document.getElementById("updateProperties")?.addEventListener('click', updateProperties);
+
 }
 
 function startSimulation() {
@@ -272,11 +284,16 @@ function setInputsDisabled(disabled) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     objects.forEach(obj => {
+        ctx.save();
+        ctx.translate(obj.x, obj.y);
+        ctx.rotate(obj.angle * Math.PI / 180);
+        ctx.translate(-obj.x, -obj.y);
         if (obj.type === 'sphere') {
             drawSphere(obj.x, obj.y, "blue", obj.size);
         } else if (obj.type === 'square') {
             drawSquare(obj.x, obj.y, "red", obj.size);
         }
+        ctx.restore();
     })
     if (addingObject && previewObject) {
         drawPreviewObject();
@@ -339,6 +356,7 @@ function updateSimulation() {
     objects.forEach(obj => {
         obj.x += obj.velocity.x;
         obj.y += obj.velocity.y;
+        obj.angle += obj.angularVelocity;
     
         if (bounceAtBorders) {
                 if (obj.x - obj.size/2 < 0) {
@@ -468,8 +486,8 @@ function checkSphereSquareCollision(/** @type {DynamicObject} */  square, /** @t
     return null;
 }
 
-function resolveCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2, /** @type {{x: number, y: number}} */ normal) {
-    const relativeVelocityX = obj2.velocity.x - obj1.velocity.x;
+function resolveCollision(/** @type {DynamicObject } */ obj1, /** @type {DynamicObject} */ obj2, /** @type {{x: number, y: number}} */ normal) {
+    const relativeVelocityX = obj2.velocity.x -obj1.velocity.x;
     const relativeVelocityY = obj2.velocity.y - obj1.velocity.y;
     const velocityAlongNormal = relativeVelocityX * normal.x + relativeVelocityY * normal.y;
 
