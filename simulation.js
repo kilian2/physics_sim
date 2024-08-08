@@ -405,6 +405,15 @@ function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObj
     else if (obj1.type === ObjectType.SQUARE && obj2.type == ObjectType.SQUARE) {
         return checkSquareSquareCollision(obj1, obj2);
     }
+    else if (obj1.type === ObjectType.SPHERE && obj2.type === ObjectType.SQUARE) {
+        const inversedNormal = checkSphereSquareCollision(obj2, obj1);
+        let normal = null;
+        if(inversedNormal) {normal = {x: -1 * inversedNormal.x, y: -1 * inversedNormal.y}}
+        return normal;
+    }
+    else if (obj1.type === ObjectType.SQUARE && obj2.type === ObjectType.SPHERE) {
+       return checkSphereSquareCollision(obj1, obj2);
+    }
 
 }
 
@@ -443,6 +452,22 @@ function checkSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type
     return null;
 }
 
+function checkSphereSquareCollision(/** @type {DynamicObject} */  square, /** @type {DynamicObject} */ sphere) {
+    const closestXInSquareToSphere = Math.max(square.x - square.size / 2, Math.min(sphere.x, square.x + square.size / 2));
+    const closestYInSquareToSphere = Math.max(square.y - square.size / 2, Math.min(sphere.y, square.y + square.size / 2));
+    
+    const vectorSquareToSphereX = sphere.x - closestXInSquareToSphere;
+    const vectorSquareToSphereY = sphere.y - closestYInSquareToSphere;
+    const distanceSquared = vectorSquareToSphereX ** 2 + vectorSquareToSphereY ** 2;
+    
+    if (distanceSquared < (sphere.size / 2) ** 2) {
+        const distance = Math.sqrt(distanceSquared);
+        return { x: vectorSquareToSphereX / distance, y: vectorSquareToSphereY / distance };
+    }
+    
+    return null;
+}
+
 function resolveCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2, /** @type {{x: number, y: number}} */ normal) {
     const relativeVelocityX = obj2.velocity.x - obj1.velocity.x;
     const relativeVelocityY = obj2.velocity.y - obj1.velocity.y;
@@ -471,7 +496,6 @@ function resolveCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicO
     obj2.velocity.x = newObj2VelocityX;
     obj2.velocity.y = newObj2VelocityY;   
 }
-
 
 drawLoop();
 
