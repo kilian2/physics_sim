@@ -1,0 +1,25 @@
+{
+  "name": "physics_sim",
+  "version": "1.0.0",
+  "description": "A project focused on learning and collaboration with the aim at creating various simulations of dynamic systems (for example physics inspired) that can be viewd, configured and interacted with online.",
+  "main": "main.js",
+  "scripts": {
+   "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kilian2/physics_sim.git"
+  },
+  "author": "Kilian",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kilian2/physics_sim/issues"
+  },
+  "homepage": "https://github.com/kilian2/physics_sim#readme",
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/preset-env": "^7.25.3",
+    "babel-jest": "^29.7.0",
+    "jest": "^29.7.0"
+  }
+}
