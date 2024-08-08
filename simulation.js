@@ -294,7 +294,7 @@ function drawPreviewObject() {
         ctx.fill();
     } else if (previewObject.type === 'square') {
         ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.fillRect(currentMousePosition.x -10, currentMousePosition.y -10, size, size);
+        ctx.fillRect(currentMousePosition.x -size/2, currentMousePosition.y -size/2, size, size);
     }
     
 }
@@ -326,7 +326,7 @@ function drawSphere(x, y, color, size) {
 
 function drawSquare(x, y, color, size) {
     ctx.fillStyle = color;
-    ctx.fillRect(x -10, y -10, size, size);
+    ctx.fillRect(x - size/2, y -size/2, size, size);
 }
 
 function drawLoop() {
@@ -341,28 +341,28 @@ function updateSimulation() {
         obj.y += obj.velocity.y;
     
         if (bounceAtBorders) {
-                if (obj.x < 0) {
-                    obj.x = 0;
+                if (obj.x - obj.size/2 < 0) {
+                    obj.x =  0 + obj.size / 2;
                     obj.velocity.x *= -1;
                 }
-                if (obj.x > canvas.width) {
-                    obj.x = canvas.width;
+                if (obj.x + obj.size / 2 > canvas.width) {
+                    obj.x =  canvas.width - obj.size / 2;
                     obj.velocity.x *= -1;
                 }
-                if (obj.y < 0) {
-                    obj.y = 0;
+                if (obj.y - obj.size/2 < 0) {
+                    obj.y = 0 + obj.size / 2;
                     obj.velocity.y *= -1;
                 }
-                if (obj.y > canvas.height) {
-                    obj.y = canvas.height;
+                if (obj.y + obj.size / 2 > canvas.height) {
+                    obj.y = canvas.height - obj.size / 2;
                     obj.velocity.y *= -1;
                 }
             } else {
                 // Keep objects within canvas bounds without bouncing
-                if (obj.x < 0) obj.x = 0;
-                if (obj.x > canvas.width) obj.x = canvas.width;
-                if (obj.y < 0) obj.y = 0;
-                if (obj.y > canvas.height) obj.y = canvas.height;
+                if (obj.x - obj.size / 2 < 0) obj.x = 0 + obj.size / 2;
+                if (obj.x + obj.size / 2 > canvas.width) obj.x = canvas.width - obj.size / 2;
+                if (obj.y - obj.size / 2 < 0) obj.y = 0 + obj.size / 2;
+                if (obj.y + obj.size / 2 > canvas.height) obj.y = canvas.height - obj.size / 2;
             }
             handleCollisions();
     })
@@ -399,8 +399,11 @@ function handleCollisions() {
 }
 
 function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2) {
-    if (obj1.type === "sphere" && obj2.type === "sphere") {
+    if (obj1.type === ObjectType.SPHERE && obj2.type === ObjectType.SPHERE) {
         return checkSphereSphereCollision(obj1, obj2);
+    } 
+    else if (obj1.type === ObjectType.SQUARE && obj2.type == ObjectType.SQUARE) {
+        return checkSquareSquareCollision(obj1, obj2);
     }
 
 }
@@ -414,6 +417,27 @@ function checkSphereSphereCollision(/** @type {DynamicObject} */ obj1, /** @type
     if (distanceSquared < combinedRadius ** 2) {
         const distance = Math.sqrt(distanceSquared);
         return {x: distanceX / distance, y: distanceY / distance};
+    }
+    return null;
+}
+
+function checkSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2) {
+    const halfSize1 = obj1.size / 2;
+    const halfSize2 = obj2.size / 2;
+    const distanceX = Math.abs(obj1.x - obj2.x);
+    const distanceY = Math.abs(obj1.y - obj2.y);
+
+
+    if (distanceX < halfSize1 + halfSize2 &&
+        distanceY < halfSize1 + halfSize2) {
+        const overlapX = (halfSize1 + halfSize2) - distanceX;
+        const overlapY = (halfSize1 + halfSize2) - distanceY;
+
+        if (overlapX < overlapY) {
+            return {x: obj1.x < obj2.x ? 1 : -1, y : 0};
+        } else {
+            return {x: 0, y: obj1.y < obj2.y ? 1 : -1};
+        }
     }
 
     return null;
