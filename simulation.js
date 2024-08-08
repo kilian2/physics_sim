@@ -1,8 +1,7 @@
 //@ts-check
 class DynamicObject {
     /**
-     * 
-     * @param {string} type 
+     * @param {ObjectType} type 
      * @param {number} size 
      * @param {number} x
      * @param {number} y
@@ -19,16 +18,42 @@ class DynamicObject {
     }
 }
 
+class PreviewObject {
+    /**
+     * @param {ObjectType} type 
+     * @param {number} size 
+     * @param {number} x 
+     * @param {number} y 
+     */
+    constructor(type, size, x, y){
+        this.type = type;
+        this.size = size;
+        this.x = x;
+        this.y = y;
+    }
+}
+
+class ObjectType {
+    static get SPHERE () {
+        return "sphere";
+    }
+    
+    static get SQUARE () {
+        return "square";
+    }
+}
+
 const {canvas, ctx, objectTypeSelect, bounceAtBordersCheckbox, objectTypeDisplayElement, objectPositionElement,
      objectSpeedInputElement, objectDirectionInputElement, newObjectSizeInputElement, newObjectMassInputElement,
      objectMassInputElement} = initPageElements();
-const objects = [];
 
+   
+const objects = /** @type {Array<DynamicObject>} */ ([]);
 let running = false;
 let currentMousePosition = {x: 0, y: 0};
 let addingObject = false;
-let previewObject = null;
-let selectedObject = /**@type {DynamicObject | null} */ (null);
+let /** @type {PreviewObject | null} */ previewObject = null;
+let /** @type {DynamicObject | undefined} */ selectedObject = undefined;
 
 document.addEventListener('DOMContentLoaded', () => {
     addEventListeners();
@@ -103,10 +128,10 @@ function addEventListeners() {
     canvas.addEventListener('click', (event) => {
         if (addingObject) {
             const size =  parseFloat(newObjectSizeInputElement.value);
-            const mass = parseFloat(newObjectMassInputElement.value);   
-            objects.push(new DynamicObject(previewObject.type, size, currentMousePosition.x, currentMousePosition.y, {x: 0, y: 0}, mass));
+            const mass = parseFloat(newObjectMassInputElement.value);
+            const type = objectTypeSelect.value; 
+            objects.push(new DynamicObject(type, size, currentMousePosition.x, currentMousePosition.y, {x: 0, y: 0}, mass));
             addingObject = false;
-            previewObject = null;
         } else {
             selectObject(event);
         }
@@ -145,11 +170,17 @@ function simulate() {
 
 function startAddObject() {
     addingObject = true;
-    previewObject = {type: objectTypeSelect.value, x:0 , y: 0 };
-}
-
-function getColorForType(type) {
-    return type === 'sphere' ? 'blue' : 'red';
+    const typeString = objectTypeSelect.value;
+    const size = parseFloat(newObjectSizeInputElement.value);
+    let objectType = new ObjectType;
+    switch (typeString) {
+        case "sphere":
+            objectType = ObjectType.SPHERE;
+            break;
+        case "square":
+            objectType = ObjectType.SQUARE;
+    }
+    previewObject = new PreviewObject(objectType, size, 0, 0);
 }
 
 function getMassForNewObject() {
@@ -170,10 +201,11 @@ function selectObject(event) {
     const clickX = event.clientX - rect.left;
     const clickY = event.clientY - rect.top;
     selectedObject = objects.find(obj => {
-        if (obj.type === 'sphere') {
-            return Math.hypot(obj.x - clickX, obj.y - clickY) < 10;
-        } else if (obj.type === 'square') {
-            return clickX > obj.x - 10 && clickX < obj.x + 10 && clickY > obj.y -10 && clickY < obj.y + 10;
+        if (obj.type === ObjectType.SPHERE) {
+            return Math.hypot(obj.x - clickX, obj.y - clickY) < obj.size / 2;
+        } else if (obj.type === ObjectType.SQUARE) {
+            return clickX > obj.x -  obj.size && clickX < obj.x +  obj.size 
+            && clickY > obj.y - obj.size && clickY < obj.y +  obj.size;
         }
     });
     if (selectedObject) {
@@ -189,7 +221,7 @@ function removeSelectedObject() {
         const index = objects.indexOf(selectedObject);
         if (index > -1) {
             objects.splice(index, 1);
-            selectedObject = null;
+            selectedObject = undefined;
             clearObjectProperties();
         }
     }
@@ -253,7 +285,9 @@ function draw() {
 
 function drawPreviewObject() {
     let size = parseFloat(newObjectSizeInputElement.value);
-    if ( previewObject.type === 'sphere') {
+    if (!previewObject) {throw new Error ("Preview object is null")};
+        
+    if (previewObject.type === 'sphere') {
         ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
         ctx.beginPath();
         ctx.arc(currentMousePosition.x, currentMousePosition.y, size/2, 0, Math.PI * 2);
