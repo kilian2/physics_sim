@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals';
-import {Line, checkLineLineCollision, checkLineLineCollisionConvoluted} from './util.js';
+import {Line, checkLineLineCollision, checkLineLineCollisionConvoluted, checkLineCircleCollision} from './util.js';
 
 //const checkLineLineCollision = require('./util');
 
@@ -49,3 +49,19 @@ describe('checkLineLineCollisionConvoluted', () => {
         expect(p2.y).toBeCloseTo(1.304347, 5);
     });
 });
+
+describe('checkLineCircleCollision', () => {
+
+    const circle = {x: -1.5, y: 2, radius: 3};
+    const notIntersectingLine1 = new Line(1.5, -0.5, 2, 5);
+    const notIntersectingLine2 = new Line(-7, -1, -4.6, 1.8);
+    const intersectingLine1 = new Line(1.17, 0.17, 1.7, 2.8);
+
+    test('returns false if line does not intersect circle', () => {
+        expect(checkLineCircleCollision(notIntersectingLine1, circle)).toBe(false);
+        expect(checkLineCircleCollision(notIntersectingLine2, circle)).toBe(false);
+        expect(checkLineCircleCollision(intersectingLine1, circle)).toBe(true);     
+    });
+});
+
+
