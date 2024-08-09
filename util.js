@@ -107,3 +107,80 @@ function getIntersectionPointForLineFunctions(a1, b1, a2, b2) {
     const y = a1 * x + b1;
     return {x: x, y: y};
 }
+
+
+export function rotatePoints( /** @type {Array<{x: number, y: number}>} */ points, radians, /** @type {{x, y}} */ origin) {
+    const /** @type {Array<{x: number, y: number}>} */ rotatedPoints = [];
+    const cosRad = Math.cos(radians);
+    const sinRad = Math.sin(radians);
+    points.forEach(p => {
+        rotatedPoints.push({x: cosRad * (p.x - origin.x) - sinRad * (p.y - origin.y) + origin.x, 
+            y: sinRad * (p.x - origin.x) + cosRad * (p.y - origin.y) + origin.y});
+    })
+    return rotatedPoints;
+}
+
+export function checkPolyPolyCollision(/** @type {Array<{x, y}>} */ points1, /** @type {Array<{x, y}>} */  points2){
+    for (let i = 0; i < points1.length; i++) {
+        const currentPoint = points1[i];
+        const nextPoint = i < points1.length -1 ? points1[i + 1] : points1[0];
+        const line = new Line(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
+        if (checkPolyLineCollision(points2, line)){
+            return true;
+        }
+        //TODO: check if one polygon is in the other polygon
+    }
+    return false;
+}
+
+export function checkPolyLineCollision(/** @type {Array<{x, y}>} */ vertices, /** @type {Line} */ line){
+    for (let i = 0; i < vertices.length; i++) {
+        const currentPoint = vertices[i];
+        const nextPoint = i < vertices.length -1 ? vertices[i + 1] : vertices[0];
+        const l = new Line(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
+        if (checkLineLineCollision(l, line)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+export function checkPolyCircleCollision(/** @type {Array<x, y>}>} */ vertices, {x, y, radius}) {
+    for (let i = 0; i < vertices.length; i++) {
+        const currentPoint = vertices[i];
+        const nextPoint = i < vertices.length -1 ? vertices[i + 1] : vertices[0];
+        const line = new Line(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
+        if (checkLineCircleCollision(line, {x, y, radius})) {
+            return true;
+        }
+    }
+    return false;
+}
+
+export function checkLineCircleCollisionDepreciated(/** @type {Line} */ line, {x, y, radius}){
+    const p1ToCircleCenter = {x: x - line.p1X, y: y - line.p1Y};
+    const p1ToCircleCenterDistance = Math.hypot(p1ToCircleCenter.x, p1ToCircleCenter.y);
+    const p1ToCircleDistance = Math.hypot(p1ToCircleCenter.x, p1ToCircleCenter.y) - radius;
+    const p1ToCircleCenterNormalized = {x: p1ToCircleCenter.x / p1ToCircleCenterDistance, y: p1ToCircleCenter.y / p1ToCircleCenterDistance};
+    const p1ToP2 = {x: line.p2X - line.p1X, y: line.p2Y - line.p1Y};
+    const p1ToP2Distance = Math.hypot(p1ToP2.x, p1ToP2.y);
+    //const p1ToP2Normalized = {x: p1ToP2.x / p1ToP2Distance, y: p1ToP2.y / p1ToP2Distance};
+    const ratioP1ToP2PointingTowardsCircle = (p1ToCircleCenterNormalized.x * p1ToP2.x + 
+    p1ToCircleCenterNormalized.y + p1ToP2.y)/p1ToCircleCenterDistance;
+    if (p1ToP2Distance * ratioP1ToP2PointingTowardsCircle > p1ToCircleDistance) return true;
+    return false;
+}
+
+export function checkLineCircleCollision(/** @type {Line} */ line, {x, y, radius}){
+    const x1 = line.p1X, x2 = line.p2X, x3 = x;
+    const y1 = line.p1Y, y2 = line.p2Y, y3 = y;
+    const t = (x3 * x2 - x3 * x1 + y3 * y2 - y3 * y1) / (x2 * x2 - x2 * x1 - x2 + y2 * y2 - y2 * y1 - y2);
+    const closestX = x1 + t * (x2 - x1);
+    const closestY = y1 + t * (y2 - y1); 
+    const distanceLineToCircleCenter = Math.hypot((x3 - closestX), (y3 - closestY));
+    if (distanceLineToCircleCenter - radius < epsilon) {
+        return true;
+    }
+
+    return false;
+}

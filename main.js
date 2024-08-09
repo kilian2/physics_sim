@@ -1,6 +1,6 @@
 //@ts-check
 
-import { checkLineLineCollision } from './util.js';
+import { checkLineLineCollision, checkPolyPolyCollision, rotatePoints, checkPolyCircleCollision } from './util.js';
 
 class DynamicObject {
     /**
@@ -20,6 +20,19 @@ class DynamicObject {
         this.mass = mass;
         this.angle = 0;
         this.angularVelocity = 0;
+    }
+
+    squareToPointVector() {
+        if(this.type != ObjectType.SQUARE) {throw new Error("Object is not a square!");}
+        const halfSize = this.size / 2;
+        let /** @type {Array<{x: number, y: number}>} */ squarePoints = [
+            {x: this.x + halfSize, y: this.y - halfSize},
+            {x: this.x - halfSize, y: this.y - halfSize},
+            {x: this.x - halfSize, y: this.y + halfSize},
+            {x: this.x + halfSize, y: this.y + halfSize}
+        ];
+        const rotationRad = this.angle * Math.PI / 180;
+        return rotatePoints(squarePoints, rotationRad, {x: this.x, y: this.y});
     }
 }
 
@@ -50,7 +63,7 @@ class ObjectType {
 
 const {canvas, ctx, objectTypeSelect, bounceAtBordersCheckbox, objectTypeDisplayElement, objectPositionElement,
      objectSpeedInputElement, objectDirectionInputElement, newObjectSizeInputElement, newObjectMassInputElement,
-     objectMassInputElement} = initPageElements();
+     objectMassInputElement, objectAngleInputElement, objectAngularVelocityInputElement} = initPageElements();
 
    
 const objects = /** @type {Array<DynamicObject>} */ ([]);
@@ -105,6 +118,12 @@ function initPageElements() {
     const objectMassInputElement = /** @type {HTMLInputElement} */ (document.getElementById("objectMassInput"));
     if(!objectMassInputElement) {throw new Error ("Element not found")};
 
+    const objectAngleInputElement = /** @type {HTMLInputElement} */ (document.getElementById("objectAngleInput"));
+    if(!objectAngleInputElement) {throw new Error ("Element not found")};
+
+    const objectAngularVelocityInputElement = /** @type {HTMLInputElement} */ (document.getElementById("objectAngularVelocityInput"));
+    if(!objectAngularVelocityInputElement) {throw new Error ("Element not found")};
+
     return {
         canvas,
         ctx,
@@ -116,7 +135,9 @@ function initPageElements() {
         objectDirectionInputElement,
         newObjectSizeInputElement,
         newObjectMassInputElement,
-        objectMassInputElement
+        objectMassInputElement,
+        objectAngleInputElement,
+        objectAngularVelocityInputElement
     }
 }
 
@@ -245,6 +266,8 @@ function clearObjectProperties() {
     objectSpeedInputElement.value = "";
     objectDirectionInputElement.value = "";
     objectMassInputElement.value = "";
+    objectAngleInputElement.value = "";
+    objectAngularVelocityInputElement.value = "";
 }
 
 function updateProperties() {
@@ -252,8 +275,12 @@ function updateProperties() {
         const speed = parseFloat(objectSpeedInputElement.value);
         const direction = parseFloat(objectDirectionInputElement.value);
         const mass = parseFloat(objectMassInputElement.value);
+        const angle = parseFloat(objectAngleInputElement.value);
+        const angularVelocity = parseFloat(objectAngularVelocityInputElement.value);
         selectedObject.velocity = velocityFromSpeedAndDirection(speed, direction);
         selectedObject.mass = mass;
+        selectedObject.angle = angle;
+        selectedObject.angularVelocity = angularVelocity;
         displayObjectProperties();
     }
 }
@@ -269,6 +296,8 @@ function displayObjectProperties() {
         objectSpeedInputElement.value = speed.toFixed(2);
         objectDirectionInputElement.value = direction.toFixed(2);
         objectMassInputElement.value = selectedObject.mass.toFixed(2);
+        objectAngleInputElement.value = selectedObject.angle.toFixed(2);
+        objectAngularVelocityInputElement.value = selectedObject.angularVelocity.toFixed(2);
     }
 }
 
@@ -276,9 +305,14 @@ function setInputsDisabled(disabled) {
     objectSpeedInputElement.disabled = disabled;
     objectDirectionInputElement.disabled = disabled;
     objectMassInputElement.disabled = disabled;
+    objectAngleInputElement.disabled = disabled;
+    objectAngularVelocityInputElement.disabled = disabled;
     objectSpeedInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
     objectDirectionInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
     objectMassInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
+    objectAngleInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
+    objectAngularVelocityInputElement.style.backgroundColor = disabled ? '#e0e0e0' : '#fff';
+
 }
 
 function draw() {
@@ -320,7 +354,7 @@ function velocityFromSpeedAndDirection(speed, direction) {
     const radians = (Math.PI / 180) * direction;
     return {
         x: speed * Math.cos(radians),
-        y: -speed * Math.sin(radians) // y is negative because canvas y-axis is downward
+        y: speed * Math.sin(radians) 
     }
 }
 
@@ -357,6 +391,7 @@ function updateSimulation() {
         obj.x += obj.velocity.x;
         obj.y += obj.velocity.y;
         obj.angle += obj.angularVelocity;
+        obj.angle %= 360;
     
         if (bounceAtBorders) {
                 if (obj.x - obj.size/2 < 0) {
@@ -421,6 +456,9 @@ function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObj
         return checkSphereSphereCollision(obj1, obj2);
     } 
     else if (obj1.type === ObjectType.SQUARE && obj2.type == ObjectType.SQUARE) {
+        if(obj1.angle != 0 || obj2.angle != 0) {
+            return checkRotatedSquareSquareCollision(obj1, obj2);
+        }
         return checkSquareSquareCollision(obj1, obj2);
     }
     else if (obj1.type === ObjectType.SPHERE && obj2.type === ObjectType.SQUARE) {
@@ -470,7 +508,35 @@ function checkSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type
     return null;
 }
 
+function checkRotatedSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2){
+    const square1Edges = obj1.squareToPointVector();
+    const square2Edges = obj2.squareToPointVector();
+    const collision = checkPolyPolyCollision(square1Edges, square2Edges);
+
+    if(collision) {
+        const distanceX = obj2.x - obj1.x;
+        const distanceY = obj2.y - obj1.y;
+        const distanceSquared = distanceX ** 2 + distanceY ** 2;
+        const distance = Math.sqrt(distanceSquared);
+        return {x: distanceX / distance, y: distanceY / distance};
+    }
+
+    return null;
+}
+
 function checkSphereSquareCollision(/** @type {DynamicObject} */  square, /** @type {DynamicObject} */ sphere) {
+    if(square.angle != 0) {
+        const squareEdges = square.squareToPointVector();
+        const collision = checkPolyCircleCollision(squareEdges, {x: sphere.x, y: sphere.y, radius: sphere.size / 2});
+        if (collision) {
+            const distanceX = sphere.x - square.x;
+            const distanceY = sphere.y - square.y;
+            const distanceSquared = distanceX ** 2 + distanceY ** 2;
+            const distance = Math.sqrt(distanceSquared);
+            return {x: distanceX / distance, y: distanceY / distance};
+        }
+    }
+
     const closestXInSquareToSphere = Math.max(square.x - square.size / 2, Math.min(sphere.x, square.x + square.size / 2));
     const closestYInSquareToSphere = Math.max(square.y - square.size / 2, Math.min(sphere.y, square.y + square.size / 2));
     
