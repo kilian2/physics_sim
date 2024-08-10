@@ -151,7 +151,11 @@ function addEventListeners() {
     });
     
     canvas.addEventListener('click', (event) => {
-        if (addingObject) {
+        const x = currentMousePosition.x;
+        const y = currentMousePosition.y;
+        
+        if (addingObject ) {
+            if (checkObjectPlacementForCollisions(previewObject, null, x, y)) return;
             const size =  parseFloat(newObjectSizeInputElement.value);
             const mass = parseFloat(newObjectMassInputElement.value);
             const type = objectTypeSelect.value; 
@@ -179,9 +183,16 @@ function addEventListeners() {
 
     canvas.addEventListener('mouseup', () => {
         if(dragData.isDragging && dragData.dragObject) {
-            //TODO: check if there is space at the new object location
-            dragData.dragObject.x = currentMousePosition.x;
-            dragData.dragObject.y = currentMousePosition.y;
+            const x = currentMousePosition.x;
+            const y = currentMousePosition.y;
+            if(checkObjectPlacementForCollisions(null, dragData.dragObject ,x, y)) {
+                clearTimeout(dragTimeout);
+                dragData.isDragging = false;
+                dragData.dragObject = undefined;
+                return;
+            }
+            dragData.dragObject.x = x;
+            dragData.dragObject.y = y;
         }
         clearTimeout(dragTimeout);
         dragData.isDragging = false;
@@ -366,7 +377,7 @@ function draw() {
         if (obj.type === 'sphere') {
             drawSphere(obj.x, obj.y, "blue", obj.size);
         } else if (obj.type === 'square') {
-            drawSquare(obj.x, obj.y, "red", obj.size);
+            drawSquare(obj.x, obj.y, "black", obj.size);
         }
         ctx.restore();
     })
@@ -380,9 +391,16 @@ function drawPreviewObject() {
     if (!previewObject) {throw new Error ("Preview object is null")};
     let size = previewObject.size;
     let x = currentMousePosition.x;
-    let y = currentMousePosition.y;       
+    let y = currentMousePosition.y;
+    let drawRed = false;
+    
+    if(addingObject && !dragData.isDragging && checkObjectPlacementForCollisions(previewObject, null, x, y) || 
+        (!addingObject && dragData.isDragging && selectedObject && 
+        checkObjectPlacementForCollisions(null, selectedObject, x, y))) drawRed = true;
+    
     if (previewObject.type === 'sphere') {
-        ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
+         
+        ctx.fillStyle = !drawRed ? 'rgba(0, 0, 255, 0.5)' : 'rgba(255, 0, 0, 0.5)';
         ctx.beginPath();
         ctx.arc(x, y, size/2, 0, Math.PI * 2);
         ctx.fill();
@@ -391,7 +409,7 @@ function drawPreviewObject() {
         ctx.translate(x, y);
         ctx.rotate(previewObject.angle * Math.PI / 180);
         ctx.translate(-x, -y);
-        ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.fillStyle = !drawRed ? 'rgba(0, 0, 0, 0.5)' : 'rgba(255, 0, 0, 0.5)';
         ctx.fillRect(x -size/2, y -size/2, size, size);
         ctx.restore();
     }
@@ -467,6 +485,19 @@ function updateSimulation() {
             }
             handleCollisions();
     })
+}
+
+function checkObjectPlacementForCollisions( /**@type {PreviewObject | null} */ previewObject, 
+    /** @type {DynamicObject | null} */ objectToMove, x, y){
+    
+    if (previewObject && !objectToMove) {
+        const newObj = new DynamicObject(previewObject.type, previewObject.size, x, y, {x: 0,y: 0}, 1);
+        return objects.some(obj => checkCollision(newObj, obj) != null);    
+    }
+    if (!previewObject && objectToMove) {
+        const newObj = new DynamicObject(objectToMove.type, objectToMove.size, x, y, {x: 0, y: 0}, 1);
+        return objects.some(obj => checkCollision(newObj, obj) != null && obj != selectedObject )
+    }
 }
 
 function handleCollisions() {
