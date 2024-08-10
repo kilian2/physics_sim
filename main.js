@@ -40,14 +40,11 @@ class PreviewObject {
     /**
      * @param {ObjectType} type 
      * @param {number} size 
-     * @param {number} x 
-     * @param {number} y 
      */
-    constructor(type, size, x, y){
+    constructor(type, size, x, y, angle){
         this.type = type;
         this.size = size;
-        this.x = x;
-        this.y = y;
+        this.angle = 0;
     }
 }
 
@@ -171,9 +168,11 @@ function addEventListeners() {
             dragTimeout = setTimeout(() => {
                 dragData.isDragging = true;
                 dragData.dragObject = selectedObject;
-                previewObject = new PreviewObject(selectedObject ? selectedObject.type : "", 
-                    selectedObject? selectedObject.size: 0, selectedObject? selectedObject.x: 0, 
-                    selectedObject? selectedObject.y: 0);
+                if(previewObject && selectedObject) {
+                    previewObject.angle = selectedObject.angle;
+                    previewObject.size = selectedObject.size;
+                    previewObject.type = selectedObject.type;
+                }
             }, dragData.dragDelay);
         }
         });
@@ -246,7 +245,7 @@ function startAddObject() {
         case "square":
             objectType = ObjectType.SQUARE;
     }
-    previewObject = new PreviewObject(objectType, size, 0, 0);
+    previewObject = new PreviewObject(objectType, size, 0, 0, 0);
 }
 
 function getMassForNewObject() {
@@ -377,17 +376,24 @@ function draw() {
 }
 
 function drawPreviewObject() {
-    let size = parseFloat(newObjectSizeInputElement.value);
+    
     if (!previewObject) {throw new Error ("Preview object is null")};
-        
+    let size = previewObject.size;
+    let x = currentMousePosition.x;
+    let y = currentMousePosition.y;       
     if (previewObject.type === 'sphere') {
         ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
         ctx.beginPath();
-        ctx.arc(currentMousePosition.x, currentMousePosition.y, size/2, 0, Math.PI * 2);
+        ctx.arc(x, y, size/2, 0, Math.PI * 2);
         ctx.fill();
     } else if (previewObject.type === 'square') {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(previewObject.angle * Math.PI / 180);
+        ctx.translate(-x, -y);
         ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.fillRect(currentMousePosition.x -size/2, currentMousePosition.y -size/2, size, size);
+        ctx.fillRect(x -size/2, y -size/2, size, size);
+        ctx.restore();
     }
     
 }
