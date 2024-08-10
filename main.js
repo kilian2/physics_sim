@@ -70,6 +70,8 @@ const objects = /** @type {Array<DynamicObject>} */ ([]);
 let running = false;
 let currentMousePosition = {x: 0, y: 0};
 let addingObject = false;
+const dragData = {isDragging: false, dragObject: /** @type {DynamicObject | undefined} */ (undefined), dragDelay: 200};
+let dragTimeout;
 let /** @type {PreviewObject | null} */ previewObject = null;
 let /** @type {DynamicObject | undefined} */ selectedObject = undefined;
 
@@ -144,10 +146,10 @@ function initPageElements() {
 function addEventListeners() {
     
     canvas.addEventListener('mousemove', (event) => {
-        if (addingObject) {
-            const rect = canvas.getBoundingClientRect();
-            currentMousePosition.x = event.clientX - rect.left;
-            currentMousePosition.y = event.clientY - rect.top;
+        if (addingObject || dragData.isDragging ) {
+            const mousePos = getMousePos(canvas, event)
+            currentMousePosition.x = mousePos.x;
+            currentMousePosition.y = mousePos.y;
         }
     });
     
@@ -162,6 +164,37 @@ function addEventListeners() {
             selectObject(event);
         }
     });
+
+    canvas.addEventListener('mousedown', (e) => {
+        selectObject(e);
+        if(!dragData.isDragging && selectedObject && !running){
+            dragTimeout = setTimeout(() => {
+                dragData.isDragging = true;
+                dragData.dragObject = selectedObject;
+                previewObject = new PreviewObject(selectedObject ? selectedObject.type : "", 
+                    selectedObject? selectedObject.size: 0, selectedObject? selectedObject.x: 0, 
+                    selectedObject? selectedObject.y: 0);
+            }, dragData.dragDelay);
+        }
+        });
+
+    canvas.addEventListener('mouseup', () => {
+        if(dragData.isDragging && dragData.dragObject) {
+            //TODO: check if there is space at the new object location
+            dragData.dragObject.x = currentMousePosition.x;
+            dragData.dragObject.y = currentMousePosition.y;
+        }
+        clearTimeout(dragTimeout);
+        dragData.isDragging = false;
+        dragData.dragObject = undefined;
+    })
+
+    canvas.addEventListener('mouseleave', () => {
+        clearTimeout(dragTimeout);
+        dragData.isDragging = false;
+        dragData.dragObject = undefined;
+    })
+ 
 
     newObjectSizeInputElement.addEventListener('input', () => {
         const size = parseFloat(newObjectSizeInputElement.value);
@@ -241,11 +274,20 @@ function selectObject(event) {
             && clickY > obj.y - obj.size && clickY < obj.y +  obj.size;
         }
     });
+
     if (selectedObject) {
         displayObjectProperties();
         if(!running) {
             setInputsDisabled(false);
         }
+    }
+}
+
+function getMousePos(canvas, event) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top
     }
 }
 
@@ -329,7 +371,7 @@ function draw() {
         }
         ctx.restore();
     })
-    if (addingObject && previewObject) {
+    if (addingObject && previewObject || dragData.isDragging ) {
         drawPreviewObject();
     }
 }
