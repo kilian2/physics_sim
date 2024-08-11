@@ -174,16 +174,22 @@ export function checkLineCircleCollisionDepreciated(/** @type {Line} */ line, {x
 export function checkLineCircleCollision(/** @type {Line} */ line, {x, y, radius}){
     const x1 = line.p1X, x2 = line.p2X, cx = x;
     const y1 = line.p1Y, y2 = line.p2Y, cy = y;
-    const a = x2*cx + x1*x1 - x2*x1 - x1*cx + y2*cy + y1*y1 - y2*y1 - y1*cy;
-    const b = x2*x2 + x1*x1 -2*x2*x1 + x1*x1 + y2*y2 + y1*y1 -2*y2*y1 + y1*y1;
+    if(checkIfPointInCircle(x1, y1, cx, cy, radius) || checkIfPointInCircle(x2, y2, cx, cy, radius)) return true;
+    const a = x2*cx + x1*x1 - x2*x1 - x1*cx + (y2*cy + y1*y1 - y2*y1 - y1*cy);
+    const b = 2*x2*x1 - x2*x2 -x1*x1 + (2*y2*y1 - y2*y2 -y1*y1);
     if (b === 0) {throw new Error ("Would divide by zero, check whats going on!");}
-    const t = a / b;
+    const t = -a / b;
+    if (t > 1 || t < 0) return false;
     const closestX = x1 + t * (x2 - x1);
-    const closestY = y1 + t * (y2 - y1); 
-    const distanceLineToCircleCenter = Math.hypot((cx - closestX), (cy - closestY));
-    if (distanceLineToCircleCenter - radius < epsilon) {
+    const closestY = y1 + t * (y2 - y1);
+    const distanceLineToCircleCenterSquared =  (cx - closestX) ** 2 + (cy - closestY) ** 2;
+    if (distanceLineToCircleCenterSquared - radius ** 2 < epsilon) {
         return true;
     }
 
     return false;
+}
+
+function checkIfPointInCircle(px, py, cx, cy, r) {
+    return ((cx - px) ** 2 + (cy - py) ** 2 <= r ** 2);
 }

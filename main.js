@@ -9,21 +9,24 @@ class DynamicObject {
      * @param {number} x
      * @param {number} y
      * @param {{x:number, y:number}} velocity
-     * @param {number} mass  
+     * @param {number} mass
+     * @param {number} angle  
      */
-    constructor(type, size, x, y, velocity, mass){
+    constructor(type, size, x, y, velocity, mass, angle){
         this.type = type;
         this.size = size;
         this.x = x;
         this.y = y;
         this.velocity = velocity;
         this.mass = mass;
-        this.angle = 0;
+        this.angle = angle;
         this.angularVelocity = 0;
+        this.vertices = /** @type {Array<{x, y}>} */ ([]);
+        this.updateVertices();
     }
 
-    squareToPointVector() {
-        if(this.type != ObjectType.SQUARE) {throw new Error("Object is not a square!");}
+    updateVertices() {
+        if(this.type != ObjectType.SQUARE) return;
         const halfSize = this.size / 2;
         let /** @type {Array<{x: number, y: number}>} */ squarePoints = [
             {x: this.x + halfSize, y: this.y - halfSize},
@@ -31,8 +34,12 @@ class DynamicObject {
             {x: this.x - halfSize, y: this.y + halfSize},
             {x: this.x + halfSize, y: this.y + halfSize}
         ];
-        const rotationRad = this.angle * Math.PI / 180;
-        return rotatePoints(squarePoints, rotationRad, {x: this.x, y: this.y});
+        if(this.angle % 360 != 0){
+            const rotationRad = this.angle * Math.PI / 180;
+            this.vertices = rotatePoints(squarePoints, rotationRad, {x: this.x, y: this.y});
+        } else {
+            this.vertices = squarePoints;
+        }
     }
 }
 
@@ -64,6 +71,7 @@ const {canvas, ctx, objectTypeSelect, bounceAtBordersCheckbox, objectTypeDisplay
 
    
 const objects = /** @type {Array<DynamicObject>} */ ([]);
+const drawSquareVertices = false;
 let running = false;
 let currentMousePosition = {x: 0, y: 0};
 let addingObject = false;
@@ -159,7 +167,7 @@ function addEventListeners() {
             const size =  parseFloat(newObjectSizeInputElement.value);
             const mass = parseFloat(newObjectMassInputElement.value);
             const type = objectTypeSelect.value; 
-            objects.push(new DynamicObject(type, size, currentMousePosition.x, currentMousePosition.y, {x: 0, y: 0}, mass));
+            objects.push(new DynamicObject(type, size, currentMousePosition.x, currentMousePosition.y, {x: 0, y: 0}, mass, 0));
             addingObject = false;
         } else {
             selectObject(event);
@@ -185,14 +193,16 @@ function addEventListeners() {
         if(dragData.isDragging && dragData.dragObject) {
             const x = currentMousePosition.x;
             const y = currentMousePosition.y;
-            if(checkObjectPlacementForCollisions(null, dragData.dragObject ,x, y)) {
+            const object = dragData.dragObject;
+            if(checkObjectPlacementForCollisions(null, object ,x, y)) {
                 clearTimeout(dragTimeout);
                 dragData.isDragging = false;
                 dragData.dragObject = undefined;
                 return;
             }
-            dragData.dragObject.x = x;
-            dragData.dragObject.y = y;
+            object.x = x;
+            object.y = y;
+            if(object.type === ObjectType.SQUARE) object.updateVertices();
         }
         clearTimeout(dragTimeout);
         dragData.isDragging = false;
@@ -333,6 +343,7 @@ function updateProperties() {
         selectedObject.mass = mass;
         selectedObject.angle = angle;
         selectedObject.angularVelocity = angularVelocity;
+        selectedObject.updateVertices();
         displayObjectProperties();
     }
 }
@@ -370,16 +381,21 @@ function setInputsDisabled(disabled) {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     objects.forEach(obj => {
-        ctx.save();
-        ctx.translate(obj.x, obj.y);
-        ctx.rotate(obj.angle * Math.PI / 180);
-        ctx.translate(-obj.x, -obj.y);
         if (obj.type === 'sphere') {
             drawSphere(obj.x, obj.y, "blue", obj.size);
         } else if (obj.type === 'square') {
+            ctx.save();
+            ctx.translate(obj.x, obj.y);
+            ctx.rotate(obj.angle * Math.PI / 180);
+            ctx.translate(-obj.x, -obj.y);
             drawSquare(obj.x, obj.y, "black", obj.size);
+            ctx.restore();
+            if(drawSquareVertices) {
+                obj.vertices.forEach(v => {
+                    drawSphere(v.x, v.y,'red', 10);
+                })  
+            }
         }
-        ctx.restore();
     })
     if (addingObject && previewObject || dragData.isDragging ) {
         drawPreviewObject();
@@ -491,11 +507,11 @@ function checkObjectPlacementForCollisions( /**@type {PreviewObject | null} */ p
     /** @type {DynamicObject | null} */ objectToMove, x, y){
     
     if (previewObject && !objectToMove) {
-        const newObj = new DynamicObject(previewObject.type, previewObject.size, x, y, {x: 0,y: 0}, 1);
+        const newObj = new DynamicObject(previewObject.type, previewObject.size, x, y, {x: 0,y: 0}, 1, 0);
         return objects.some(obj => checkCollision(newObj, obj) != null);    
     }
     if (!previewObject && objectToMove) {
-        const newObj = new DynamicObject(objectToMove.type, objectToMove.size, x, y, {x: 0, y: 0}, 1);
+        const newObj = new DynamicObject(objectToMove.type, objectToMove.size, x, y, {x: 0, y: 0}, 1, objectToMove.angle);
         return objects.some(obj => checkCollision(newObj, obj) != null && obj != selectedObject )
     }
 }
@@ -531,15 +547,23 @@ function handleCollisions() {
 }
 
 function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2) {
-    if (obj1.type === ObjectType.SPHERE && obj2.type === ObjectType.SPHERE) {
-        return checkSphereSphereCollision(obj1, obj2);
-    } 
-    else if (obj1.type === ObjectType.SQUARE && obj2.type == ObjectType.SQUARE) {
-        if(obj1.angle != 0 || obj2.angle != 0) {
-            return checkRotatedSquareSquareCollision(obj1, obj2);
-        }
-        return checkSquareSquareCollision(obj1, obj2);
+    
+    const isSphereSphere = (obj1.type === ObjectType.SPHERE && obj2.type === ObjectType.SPHERE);
+    const isSquareSquare = (obj1.type === ObjectType.SQUARE && obj2.type == ObjectType.SQUARE);
+    const isSquareSphere = (obj1.type === ObjectType.SQUARE && obj2.type == ObjectType.SPHERE);
+    const isSphereSquare = (obj1.type === ObjectType.SPHERE && obj2.type == ObjectType.SQUARE);
+    let collisionNormal = null;
+
+    if (isSphereSphere) collisionNormal = checkSphereSphereCollision(obj1, obj2);
+    else if (isSquareSquare) collisionNormal = checkSquareSquareCollision(obj1, obj2);
+    else if (isSquareSphere) collisionNormal = checkSquareSphereCollision(obj1, obj2);
+    else if (isSphereSquare) collisionNormal = checkSquareSphereCollision(obj2, obj1);
+    else {
+        throw new Error("Invalid Object Type!");
     }
+    return collisionNormal;
+
+    /*
     else if (obj1.type === ObjectType.SPHERE && obj2.type === ObjectType.SQUARE) {
         const inversedNormal = checkSphereSquareCollision(obj2, obj1);
         let normal = null;
@@ -549,6 +573,7 @@ function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObj
     else if (obj1.type === ObjectType.SQUARE && obj2.type === ObjectType.SPHERE) {
        return checkSphereSquareCollision(obj1, obj2);
     }
+       */
 
 }
 
@@ -566,56 +591,66 @@ function checkSphereSphereCollision(/** @type {DynamicObject} */ obj1, /** @type
 }
 
 function checkSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2) {
-    const halfSize1 = obj1.size / 2;
-    const halfSize2 = obj2.size / 2;
-    const distanceX = Math.abs(obj1.x - obj2.x);
-    const distanceY = Math.abs(obj1.y - obj2.y);
-
-
-    if (distanceX < halfSize1 + halfSize2 &&
-        distanceY < halfSize1 + halfSize2) {
-        const overlapX = (halfSize1 + halfSize2) - distanceX;
-        const overlapY = (halfSize1 + halfSize2) - distanceY;
-
-        if (overlapX < overlapY) {
-            return {x: obj1.x < obj2.x ? 1 : -1, y : 0};
-        } else {
-            return {x: 0, y: obj1.y < obj2.y ? 1 : -1};
+    let collisionNormal = /** @type {{x, y} | null} */ (null);
+    if(obj1.angle % 360 != 0 || obj2.angle % 360 != 0){
+        collisionNormal = checkRotatedSquareSquareCollision(obj1, obj2);
+    } 
+    else {
+        const halfSize1 = obj1.size / 2;
+        const halfSize2 = obj2.size / 2;
+        const distanceX = Math.abs(obj1.x - obj2.x);
+        const distanceY = Math.abs(obj1.y - obj2.y);
+    
+        if (distanceX < halfSize1 + halfSize2 &&
+            distanceY < halfSize1 + halfSize2) {
+            const overlapX = (halfSize1 + halfSize2) - distanceX;
+            const overlapY = (halfSize1 + halfSize2) - distanceY;
+    
+            if (overlapX < overlapY) {
+                collisionNormal = {x: obj1.x < obj2.x ? 1 : -1, y : 0};
+            } else {
+                collisionNormal = {x: 0, y: obj1.y < obj2.y ? 1 : -1};
+            }
         }
     }
-
-    return null;
+    return collisionNormal;
 }
 
 function checkRotatedSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2){
-    const square1Edges = obj1.squareToPointVector();
-    const square2Edges = obj2.squareToPointVector();
-    const collision = checkPolyPolyCollision(square1Edges, square2Edges);
+    //TODO: Keep the vertices updated at different location (simulationloop?)
+    obj1.updateVertices();
+    obj2.updateVertices();
+    const collision = checkPolyPolyCollision(obj1.vertices, obj2.vertices);
+    let collisionNormal = /** @type {{x, y} | null} */ (null);
 
     if(collision) {
         const distanceX = obj2.x - obj1.x;
         const distanceY = obj2.y - obj1.y;
         const distanceSquared = distanceX ** 2 + distanceY ** 2;
         const distance = Math.sqrt(distanceSquared);
-        return {x: distanceX / distance, y: distanceY / distance};
+        collisionNormal = {x: distanceX / distance, y: distanceY / distance};
     }
-
-    return null;
+    return collisionNormal;
 }
 
-function checkSphereSquareCollision(/** @type {DynamicObject} */  square, /** @type {DynamicObject} */ sphere) {
-    if(square.angle != 0) {
-        const squareEdges = square.squareToPointVector();
-        const collision = checkPolyCircleCollision(squareEdges, {x: sphere.x, y: sphere.y, radius: sphere.size / 2});
+function checkSquareSphereCollision(/** @type {DynamicObject} */  square, /** @type {DynamicObject} */ sphere) {
+    if (square.type != ObjectType.SQUARE || sphere.type != ObjectType.SPHERE) throw new Error("ObjectType mismatch!");
+    if (square.angle != 0) {
+        //TODO: Keep the vertices updated at different location (simulationloop?)
+        square.updateVertices();
+        const collision = checkPolyCircleCollision(square.vertices, {x: sphere.x, y: sphere.y, radius: sphere.size / 2});
         if (collision) {
             const distanceX = sphere.x - square.x;
             const distanceY = sphere.y - square.y;
             const distanceSquared = distanceX ** 2 + distanceY ** 2;
             const distance = Math.sqrt(distanceSquared);
             return {x: distanceX / distance, y: distanceY / distance};
+        } 
+        else {
+            return null;
         }
     }
-
+    else {
     const closestXInSquareToSphere = Math.max(square.x - square.size / 2, Math.min(sphere.x, square.x + square.size / 2));
     const closestYInSquareToSphere = Math.max(square.y - square.size / 2, Math.min(sphere.y, square.y + square.size / 2));
     
@@ -627,6 +662,7 @@ function checkSphereSquareCollision(/** @type {DynamicObject} */  square, /** @t
         const distance = Math.sqrt(distanceSquared);
         return { x: vectorSquareToSphereX / distance, y: vectorSquareToSphereY / distance };
     }
+}
     
     return null;
 }
