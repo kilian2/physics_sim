@@ -474,6 +474,7 @@ function updateSimulation() {
         obj.y += obj.velocity.y;
         obj.angle += obj.angularVelocity;
         obj.angle %= 360;
+        if(obj.type === ObjectType.SQUARE) obj.updateVertices();
     
         if (bounceAtBorders) {
                 if (obj.x - obj.size/2 < 0) {
@@ -557,7 +558,10 @@ function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObj
     if (isSphereSphere) collisionNormal = checkSphereSphereCollision(obj1, obj2);
     else if (isSquareSquare) collisionNormal = checkSquareSquareCollision(obj1, obj2);
     else if (isSquareSphere) collisionNormal = checkSquareSphereCollision(obj1, obj2);
-    else if (isSphereSquare) collisionNormal = checkSquareSphereCollision(obj2, obj1);
+    else if (isSphereSquare) {
+        const invertedCollisionNormal = checkSquareSphereCollision(obj2, obj1);
+        invertedCollisionNormal? collisionNormal = {x: -invertedCollisionNormal?.x, y: -invertedCollisionNormal.y} : null;
+    }
     else {
         throw new Error("Invalid Object Type!");
     }
