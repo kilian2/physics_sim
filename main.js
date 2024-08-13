@@ -22,6 +22,7 @@ class DynamicObject {
         this.angle = angle;
         this.angularVelocity = 0;
         this.vertices = /** @type {Array<{x, y}>} */ ([]);
+        this.isSelected = false;
         this.updateVertices();
     }
 
@@ -76,9 +77,12 @@ let running = false;
 let currentMousePosition = {x: 0, y: 0};
 let addingObject = false;
 const dragData = {isDragging: false, dragObject: /** @type {DynamicObject | undefined} */ (undefined), dragDelay: 200};
+const selectionBoxData = {isSelecting: false, selectionStart: {x: 0, y: 0}, selectionEnd: {x: 0, y: 0}, 
+selectedObjects: /** @type {Array<DynamicObject>} */ ([])};
 let dragTimeout;
 let /** @type {PreviewObject | null} */ previewObject = null;
 let /** @type {DynamicObject | undefined} */ selectedObject = undefined;
+
 
 document.addEventListener('DOMContentLoaded', () => {
     addEventListeners();
@@ -151,31 +155,31 @@ function initPageElements() {
 function addEventListeners() {
     
     canvas.addEventListener('mousemove', (event) => {
-        if (addingObject || dragData.isDragging ) {
-            const mousePos = getMousePos(canvas, event)
-            currentMousePosition.x = mousePos.x;
-            currentMousePosition.y = mousePos.y;
+        currentMousePosition = getMousePos(canvas, event); 
+        if ( selectionBoxData.isSelecting ) {
+            selectionBoxData.selectionEnd = currentMousePosition;
         }
     });
     
-    canvas.addEventListener('click', (event) => {
+    canvas.addEventListener('mousedown', (event) => {
+        currentMousePosition = getMousePos(canvas, event);
         const x = currentMousePosition.x;
         const y = currentMousePosition.y;
         
-        if (addingObject ) {
+        if (!selectionBoxData.isSelecting && !addingObject) {
+            selectObject(event);
+        }
+        if (addingObject) {
             if (checkObjectPlacementForCollisions(previewObject, null, x, y)) return;
             const size =  parseFloat(newObjectSizeInputElement.value);
             const mass = parseFloat(newObjectMassInputElement.value);
             const type = objectTypeSelect.value; 
             objects.push(new DynamicObject(type, size, currentMousePosition.x, currentMousePosition.y, {x: 0, y: 0}, mass, 0));
             addingObject = false;
-        } else {
-            selectObject(event);
         }
     });
 
     canvas.addEventListener('mousedown', (e) => {
-        selectObject(e);
         if(!dragData.isDragging && selectedObject && !running){
             dragTimeout = setTimeout(() => {
                 dragData.isDragging = true;
@@ -187,12 +191,20 @@ function addEventListeners() {
                 }
             }, dragData.dragDelay);
         }
+        else {
+            dragTimeout = setTimeout(() => {
+                selectionBoxData.isSelecting = true;
+                selectionBoxData.selectionStart = {x: currentMousePosition.x, y: currentMousePosition.y};
+                selectionBoxData.selectionEnd = {x: currentMousePosition.x, y: currentMousePosition.y};
+            }, 100);
+        }
         });
 
     canvas.addEventListener('mouseup', () => {
+        const x = currentMousePosition.x;
+        const y = currentMousePosition.y;
+
         if(dragData.isDragging && dragData.dragObject) {
-            const x = currentMousePosition.x;
-            const y = currentMousePosition.y;
             const object = dragData.dragObject;
             if(checkObjectPlacementForCollisions(null, object ,x, y)) {
                 clearTimeout(dragTimeout);
@@ -204,6 +216,12 @@ function addEventListeners() {
             object.y = y;
             if(object.type === ObjectType.SQUARE) object.updateVertices();
         }
+        else if (selectionBoxData.isSelecting) {
+            selectionBoxData.isSelecting = false;
+            selectionBoxData.selectionEnd = {x: x, y: y};
+            applySelectionBox();
+        }
+
         clearTimeout(dragTimeout);
         dragData.isDragging = false;
         dragData.dragObject = undefined;
@@ -283,24 +301,40 @@ function getMassForNewObject() {
 }
 
 function selectObject(event) {
-    const rect = canvas.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const clickY = event.clientY - rect.top;
+    console.log("selectObject")
+    const x = currentMousePosition.x;
+    const y = currentMousePosition.y;
+
+    objects.forEach((obj) => obj.isSelected = false);
+    selectionBoxData.selectedObjects = [];
     selectedObject = objects.find(obj => {
         if (obj.type === ObjectType.SPHERE) {
-            return Math.hypot(obj.x - clickX, obj.y - clickY) < obj.size / 2;
+            return Math.hypot(obj.x - x, obj.y - y) < obj.size / 2;
         } else if (obj.type === ObjectType.SQUARE) {
-            return clickX > obj.x -  obj.size && clickX < obj.x +  obj.size 
-            && clickY > obj.y - obj.size && clickY < obj.y +  obj.size;
+            return x > obj.x -  obj.size && x < obj.x +  obj.size 
+            && y > obj.y - obj.size && y < obj.y +  obj.size;
         }
     });
-
+    
     if (selectedObject) {
         displayObjectProperties();
+        selectedObject.isSelected = true;
         if(!running) {
             setInputsDisabled(false);
         }
     }
+}
+
+function applySelectionBox () {
+    const minX = Math.min(selectionBoxData.selectionStart.x, selectionBoxData.selectionEnd.x);
+    const maxX = Math.max(selectionBoxData.selectionStart.x, selectionBoxData.selectionEnd.x);
+    const minY = Math.min(selectionBoxData.selectionStart.y, selectionBoxData.selectionEnd.y);
+    const maxY = Math.max(selectionBoxData.selectionStart.y, selectionBoxData.selectionEnd.y);
+
+    selectionBoxData.selectedObjects.forEach((obj) => obj.isSelected = false);
+    selectionBoxData.selectedObjects = objects.filter(obj => (obj.x >= minX && obj.x <= maxX && obj.y >= minY && obj.y <= maxY));
+    selectionBoxData.selectedObjects.forEach((obj) => obj.isSelected = true);
+    console.log(selectionBoxData.selectedObjects.length+ " objects selected");
 }
 
 function getMousePos(canvas, event) {
@@ -382,13 +416,14 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     objects.forEach(obj => {
         if (obj.type === 'sphere') {
-            drawSphere(obj.x, obj.y, "blue", obj.size);
+            drawSphere(obj.x, obj.y, "blue", obj.size, obj.isSelected);
+            
         } else if (obj.type === 'square') {
             ctx.save();
             ctx.translate(obj.x, obj.y);
             ctx.rotate(obj.angle * Math.PI / 180);
             ctx.translate(-obj.x, -obj.y);
-            drawSquare(obj.x, obj.y, "black", obj.size);
+            drawSquare(obj.x, obj.y, "black", obj.size, obj.isSelected);
             ctx.restore();
             if(drawSquareVertices) {
                 obj.vertices.forEach(v => {
@@ -399,6 +434,16 @@ function draw() {
     })
     if (addingObject && previewObject || dragData.isDragging ) {
         drawPreviewObject();
+    }
+    if (selectionBoxData.isSelecting) {
+        ctx.fillStyle = 'rgba(0, 0, 1, 0.3)';
+        const height = Math.abs(selectionBoxData.selectionEnd.y - selectionBoxData.selectionStart.y);
+        const width = Math.abs(selectionBoxData.selectionEnd.x - selectionBoxData.selectionStart.x);
+        if(height + width > 2) {
+            const left = Math.min(selectionBoxData.selectionStart.x, selectionBoxData.selectionEnd.x);
+            const top = Math.min(selectionBoxData.selectionStart.y, selectionBoxData.selectionEnd.y);
+            ctx.fillRect(left, top, width, height);
+        }
     }
 }
 
@@ -450,16 +495,27 @@ function speedFromVelocity(velocity) {
     return Math.hypot(velocity.x, velocity.y);
 }
 
-function drawSphere(x, y, color, size) {
+function drawSphere(x, y, color, size, drawBorder) {
     ctx.fillStyle = color;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.arc(x, y, size/2, 0, Math.PI * 2);
     ctx.fill();
+    if(drawBorder) {
+        ctx.strokeStyle = "green";
+        ctx.stroke()
+    }
+    ctx.closePath();
 }
 
-function drawSquare(x, y, color, size) {
+function drawSquare(x, y, color, size, drawBorder) {
+    ctx.lineWidth = 3;
     ctx.fillStyle = color;
     ctx.fillRect(x - size/2, y -size/2, size, size);
+    if(drawBorder) {
+        ctx.strokeStyle = "green";
+        ctx.strokeRect(x - size/2, y -size/2, size, size);
+    }
 }
 
 function drawLoop() {
