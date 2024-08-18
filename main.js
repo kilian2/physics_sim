@@ -1,6 +1,6 @@
 //@ts-check
 
-import { checkLineLineCollision, checkPolyPolyCollision, rotatePoints, checkPolyCircleCollision } from './util.js';
+import { checkLineLineCollision, checkPolyPolyCollision, rotatePoints, checkPolyCircleCollision, normalize, getOrthoNormal } from './util.js';
 
 class DynamicObject {
     /**
@@ -594,10 +594,10 @@ function handleCollisions() {
                 continue; // Skip further calculations if not closing in
             }
 
-            const collisionNormal = checkCollision(obj1, obj2);
+            const collisionData = checkCollision(obj1, obj2);
 
-            if (collisionNormal) {
-                resolveCollision(obj1, obj2, collisionNormal);
+            if (collisionData) {
+                resolveCollision(obj1, obj2, collisionData);
             }
         }
     }
@@ -609,128 +609,96 @@ function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObj
     const isSquareSquare = (obj1.type === ObjectType.SQUARE && obj2.type == ObjectType.SQUARE);
     const isSquareSphere = (obj1.type === ObjectType.SQUARE && obj2.type == ObjectType.SPHERE);
     const isSphereSquare = (obj1.type === ObjectType.SPHERE && obj2.type == ObjectType.SQUARE);
-    let collisionNormal = null;
+    let collisionData = null;
 
-    if (isSphereSphere) collisionNormal = checkSphereSphereCollision(obj1, obj2);
-    else if (isSquareSquare) collisionNormal = checkSquareSquareCollision(obj1, obj2);
-    else if (isSquareSphere) collisionNormal = checkSquareSphereCollision(obj1, obj2);
+    if (isSphereSphere) collisionData = checkSphereSphereCollision(obj1, obj2);
+    else if (isSquareSquare) collisionData = checkSquareSquareCollision(obj1, obj2);
+    else if (isSquareSphere) collisionData = checkSquareSphereCollision(obj1, obj2);
     else if (isSphereSquare) {
-        const invertedCollisionNormal = checkSquareSphereCollision(obj2, obj1);
-        invertedCollisionNormal? collisionNormal = {x: -invertedCollisionNormal?.x, y: -invertedCollisionNormal.y} : null;
+        const collisionDataWithInvertedCollisionNormal = checkSquareSphereCollision(obj2, obj1);
+        collisionDataWithInvertedCollisionNormal? collisionData = 
+        {normal: {x: -collisionDataWithInvertedCollisionNormal?.x, y: -collisionDataWithInvertedCollisionNormal.y},
+         location: collisionDataWithInvertedCollisionNormal.location } : null;
+        
     }
     else {
         throw new Error("Invalid Object Type!");
     }
-    return collisionNormal;
-
-    /*
-    else if (obj1.type === ObjectType.SPHERE && obj2.type === ObjectType.SQUARE) {
-        const inversedNormal = checkSphereSquareCollision(obj2, obj1);
-        let normal = null;
-        if(inversedNormal) {normal = {x: -1 * inversedNormal.x, y: -1 * inversedNormal.y}}
-        return normal;
-    }
-    else if (obj1.type === ObjectType.SQUARE && obj2.type === ObjectType.SPHERE) {
-       return checkSphereSquareCollision(obj1, obj2);
-    }
-       */
-
+    return collisionData;
 }
 
 function checkSphereSphereCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2) {
     const distanceX = obj2.x - obj1.x;
     const distanceY = obj2.y - obj1.y;
     const distanceSquared = distanceX ** 2 + distanceY ** 2;
+    
     const combinedRadius = (obj1.size / 2) + (obj2.size / 2);
     
     if (distanceSquared < combinedRadius ** 2) {
         const distance = Math.sqrt(distanceSquared);
-        return {x: distanceX / distance, y: distanceY / distance};
+        const directionFromObj1ToObj2 = {x: distanceX / distance, y: distanceY / distance};
+        const collisionLocation = {x: obj1.x + directionFromObj1ToObj2.x * (distance - (obj2.size / 2)), 
+            y: obj1.y + directionFromObj1ToObj2.y * (distance - (obj2.size / 2))};
+        return {normal: {x: distanceX / distance, y: distanceY / distance}, location: collisionLocation};
     }
     return null;
 }
 
-function checkSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2) {
-    let collisionNormal = /** @type {{x, y} | null} */ (null);
-    if(obj1.angle % 360 != 0 || obj2.angle % 360 != 0){
-        collisionNormal = checkRotatedSquareSquareCollision(obj1, obj2);
-    } 
-    else {
-        const halfSize1 = obj1.size / 2;
-        const halfSize2 = obj2.size / 2;
-        const distanceX = Math.abs(obj1.x - obj2.x);
-        const distanceY = Math.abs(obj1.y - obj2.y);
-    
-        if (distanceX < halfSize1 + halfSize2 &&
-            distanceY < halfSize1 + halfSize2) {
-            const overlapX = (halfSize1 + halfSize2) - distanceX;
-            const overlapY = (halfSize1 + halfSize2) - distanceY;
-    
-            if (overlapX < overlapY) {
-                collisionNormal = {x: obj1.x < obj2.x ? 1 : -1, y : 0};
-            } else {
-                collisionNormal = {x: 0, y: obj1.y < obj2.y ? 1 : -1};
-            }
-        }
-    }
-    return collisionNormal;
-}
-
-function checkRotatedSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2){
+function checkSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObject} */ obj2){
     //TODO: Keep the vertices updated at different location (simulationloop?)
     obj1.updateVertices();
     obj2.updateVertices();
     const collision = checkPolyPolyCollision(obj1.vertices, obj2.vertices);
-    let collisionNormal = /** @type {{x, y} | null} */ (null);
+    let collisionData = /** @type {{normal: {x: number, y: number}, location: {x, y}} | null}*/ (null);
 
     if(collision) {
         const distanceX = obj2.x - obj1.x;
         const distanceY = obj2.y - obj1.y;
         const distanceSquared = distanceX ** 2 + distanceY ** 2;
         const distance = Math.sqrt(distanceSquared);
-        collisionNormal = {x: distanceX / distance, y: distanceY / distance};
+        collisionData = {normal: {x: distanceX / distance, y: distanceY / distance}, location: collision};
     }
-    return collisionNormal;
+    return collisionData;
 }
 
 function checkSquareSphereCollision(/** @type {DynamicObject} */  square, /** @type {DynamicObject} */ sphere) {
     if (square.type != ObjectType.SQUARE || sphere.type != ObjectType.SPHERE) throw new Error("ObjectType mismatch!");
-    if (square.angle != 0) {
         //TODO: Keep the vertices updated at different location (simulationloop?)
         square.updateVertices();
-        const collision = checkPolyCircleCollision(square.vertices, {x: sphere.x, y: sphere.y, radius: sphere.size / 2});
-        if (collision) {
+        const collisionLocation = checkPolyCircleCollision(square.vertices, {x: sphere.x, y: sphere.y, radius: sphere.size / 2});
+        if (collisionLocation) {
             const distanceX = sphere.x - square.x;
             const distanceY = sphere.y - square.y;
             const distanceSquared = distanceX ** 2 + distanceY ** 2;
             const distance = Math.sqrt(distanceSquared);
-            return {x: distanceX / distance, y: distanceY / distance};
+            const collisionData = {normal: {x: distanceX / distance, y: distanceY / distance}, location: collisionLocation};
+            return collisionData;
         } 
-        else {
-            return null;
-        }
-    }
-    else {
-    const closestXInSquareToSphere = Math.max(square.x - square.size / 2, Math.min(sphere.x, square.x + square.size / 2));
-    const closestYInSquareToSphere = Math.max(square.y - square.size / 2, Math.min(sphere.y, square.y + square.size / 2));
-    
-    const vectorSquareToSphereX = sphere.x - closestXInSquareToSphere;
-    const vectorSquareToSphereY = sphere.y - closestYInSquareToSphere;
-    const distanceSquared = vectorSquareToSphereX ** 2 + vectorSquareToSphereY ** 2;
-    
-    if (distanceSquared < (sphere.size / 2) ** 2) {
-        const distance = Math.sqrt(distanceSquared);
-        return { x: vectorSquareToSphereX / distance, y: vectorSquareToSphereY / distance };
-    }
-}
-    
     return null;
 }
 
-function resolveCollision(/** @type {DynamicObject } */ obj1, /** @type {DynamicObject} */ obj2, /** @type {{x: number, y: number}} */ normal) {
+function resolveCollision(/** @type {DynamicObject } */ obj1, /** @type {DynamicObject} */ obj2, 
+    /** @type {{ normal: {x: number, y: number}, location: {x, y}}} */ collisionData) {
     const relativeVelocityX = obj2.velocity.x -obj1.velocity.x;
     const relativeVelocityY = obj2.velocity.y - obj1.velocity.y;
+    const normal = collisionData.normal;
     const velocityAlongNormal = relativeVelocityX * normal.x + relativeVelocityY * normal.y;
+
+    //For handling rotations
+    const collisionPointToObj1 = {x: obj1.x - collisionData.location.x, y: obj1.y - collisionData.location.y};
+    const collisionPointToObj1Norm = normalize(collisionPointToObj1);
+    const collisionPointToObj2 = {x: obj2.x - collisionData.location.x, y: obj2.y - collisionData.location.y};
+    const collisionPointToObj2Norm = normalize(collisionPointToObj2);
+    const orthogonalToCollisionPointToObj1Norm = getOrthoNormal(collisionPointToObj1Norm);
+    const orthogonalToCollisionPointToObj2Norm = getOrthoNormal(collisionPointToObj2Norm);
+    const relVelocityNorm = normalize({x: relativeVelocityX, y: relativeVelocityY});
+    const relVelocityNormDottedorthogonalToCollisionPointToObj1Norm = orthogonalToCollisionPointToObj1Norm.x * relVelocityNorm.x 
+    + orthogonalToCollisionPointToObj1Norm.y * relativeVelocityY;
+    const relVelocityNormDottedorthogonalToCollisionPointToObj2Norm = orthogonalToCollisionPointToObj2Norm.x * relVelocityNorm.x 
+    + orthogonalToCollisionPointToObj2Norm.y * relativeVelocityY;
+    const relVelocityDottedcCollisionPointToObj1Norm = relVelocityNorm.x * collisionPointToObj1Norm.x + relVelocityNorm.y * collisionPointToObj1Norm.y;
+    const relVelocityDottedcCollisionPointToObj2Norm = relVelocityNorm.x * collisionPointToObj2Norm.x + relVelocityNorm.y * collisionPointToObj2Norm.y;
+
 
     //No collision handling required if objects are moving apart
     if(velocityAlongNormal > 0) return;

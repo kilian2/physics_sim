@@ -125,12 +125,13 @@ export function checkPolyPolyCollision(/** @type {Array<{x, y}>} */ points1, /**
         const currentPoint = points1[i];
         const nextPoint = i < points1.length -1 ? points1[i + 1] : points1[0];
         const line = new Line(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
-        if (checkPolyLineCollision(points2, line)){
-            return true;
+        const checkPolyPolyCollisionReturn = checkPolyLineCollision(points2, line);
+        if (checkPolyPolyCollisionReturn){
+            return checkPolyPolyCollisionReturn;
         }
         //TODO: check if one polygon is in the other polygon
     }
-    return false;
+    return null;
 }
 
 export function checkPolyLineCollision(/** @type {Array<{x, y}>} */ vertices, /** @type {Line} */ line){
@@ -138,11 +139,12 @@ export function checkPolyLineCollision(/** @type {Array<{x, y}>} */ vertices, /*
         const currentPoint = vertices[i];
         const nextPoint = i < vertices.length -1 ? vertices[i + 1] : vertices[0];
         const l = new Line(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
-        if (checkLineLineCollision(l, line)) {
-            return true;
+        const checkLineLineCollisionReturn = checkLineLineCollision(l, line);
+        if (checkLineLineCollisionReturn) {
+            return checkLineLineCollisionReturn;
         }
     }
-    return false;
+    return null;
 }
 
 export function checkPolyCircleCollision(/** @type {Array<x, y>}>} */ vertices, {x, y, radius}) {
@@ -150,46 +152,57 @@ export function checkPolyCircleCollision(/** @type {Array<x, y>}>} */ vertices, 
         const currentPoint = vertices[i];
         const nextPoint = i < vertices.length -1 ? vertices[i + 1] : vertices[0];
         const line = new Line(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
-        if (checkLineCircleCollision(line, {x, y, radius})) {
-            return true;
+        const lineCircleCollisionReturn = checkLineCircleCollision(line, {x, y, radius});
+        if (lineCircleCollisionReturn) {
+            return lineCircleCollisionReturn;
         }
     }
-    return false;
-}
-
-export function checkLineCircleCollisionDepreciated(/** @type {Line} */ line, {x, y, radius}){
-    const p1ToCircleCenter = {x: x - line.p1X, y: y - line.p1Y};
-    const p1ToCircleCenterDistance = Math.hypot(p1ToCircleCenter.x, p1ToCircleCenter.y);
-    const p1ToCircleDistance = Math.hypot(p1ToCircleCenter.x, p1ToCircleCenter.y) - radius;
-    const p1ToCircleCenterNormalized = {x: p1ToCircleCenter.x / p1ToCircleCenterDistance, y: p1ToCircleCenter.y / p1ToCircleCenterDistance};
-    const p1ToP2 = {x: line.p2X - line.p1X, y: line.p2Y - line.p1Y};
-    const p1ToP2Distance = Math.hypot(p1ToP2.x, p1ToP2.y);
-    //const p1ToP2Normalized = {x: p1ToP2.x / p1ToP2Distance, y: p1ToP2.y / p1ToP2Distance};
-    const ratioP1ToP2PointingTowardsCircle = (p1ToCircleCenterNormalized.x * p1ToP2.x + 
-    p1ToCircleCenterNormalized.y + p1ToP2.y)/p1ToCircleCenterDistance;
-    if (p1ToP2Distance * ratioP1ToP2PointingTowardsCircle > p1ToCircleDistance) return true;
-    return false;
+    return null;
 }
 
 export function checkLineCircleCollision(/** @type {Line} */ line, {x, y, radius}){
     const x1 = line.p1X, x2 = line.p2X, cx = x;
     const y1 = line.p1Y, y2 = line.p2Y, cy = y;
-    if(checkIfPointInCircle(x1, y1, cx, cy, radius) || checkIfPointInCircle(x2, y2, cx, cy, radius)) return true;
+    if(checkIfPointInCircle(x1, y1, cx, cy, radius))  return {x: x1, y: y1};
+    if(checkIfPointInCircle(x2, y2, cx, cy, radius)) return {x: x2, y: y2};
     const a = x2*cx + x1*x1 - x2*x1 - x1*cx + (y2*cy + y1*y1 - y2*y1 - y1*cy);
     const b = 2*x2*x1 - x2*x2 -x1*x1 + (2*y2*y1 - y2*y2 -y1*y1);
     if (b === 0) {throw new Error ("Would divide by zero, check whats going on!");}
     const t = -a / b;
-    if (t > 1 || t < 0) return false;
+    if (t > 1 || t < 0) return null;
     const closestX = x1 + t * (x2 - x1);
     const closestY = y1 + t * (y2 - y1);
     const distanceLineToCircleCenterSquared =  (cx - closestX) ** 2 + (cy - closestY) ** 2;
     if (distanceLineToCircleCenterSquared - radius ** 2 < epsilon) {
-        return true;
+        return {x: closestX, y: closestY};
     }
 
-    return false;
+    return null;
 }
 
 function checkIfPointInCircle(px, py, cx, cy, r) {
     return ((cx - px) ** 2 + (cy - py) ** 2 <= r ** 2);
 }
+
+export function normalize( /**@type {{x: number, y: number}} */ vector) {
+    const length = Math.hypot(vector.x, vector.y);
+    return {x: vector.x / length, y: vector.y / length};
+}
+
+export function getOrthoNormal( /**@type {{x: number, y: number}} */ vector) {
+    if (vector.x === 0 && vector.y !== 0) {
+        return {x : 1, y : 0}
+    } else if (vector.y === 0 && vector.x !== 0) {
+        return {x: 0, y: 1};
+    } else if ( (vector.x === 0 && vector.y === 0)) {
+        return {x: 0, y: 0};
+    }
+    else {
+        let x = (-1*vector.y) / vector.x;
+        const len = Math.hypot(x, 1);
+        x = x / len;
+        const y = 1 / len;
+        return {x: x, y: y};
+    }
+}
+
