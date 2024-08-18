@@ -614,13 +614,29 @@ function checkCollision(/** @type {DynamicObject} */ obj1, /** @type {DynamicObj
     if (isSphereSphere) collisionData = checkSphereSphereCollision(obj1, obj2);
     else if (isSquareSquare) collisionData = checkSquareSquareCollision(obj1, obj2);
     else if (isSquareSphere) collisionData = checkSquareSphereCollision(obj1, obj2);
-    else if (isSphereSquare) {
+    else if (isSquareSphere) collisionData = checkSquareSphereCollision(obj1, obj2);
+    else if(isSquareSphere) {
+        collisionData = checkSquareSphereCollision(obj1, obj2);
+    }
+    else if(isSphereSquare) {
+        collisionData = checkSquareSphereCollision(obj2, obj1);
+        if(collisionData) {
+            collisionData.normal.x *= -1;
+            collisionData.normal.y *= -1;
+        }   
+    }
+    
+    /*
+    else if (isSphereSquare || isSquareSphere ) {
         const collisionDataWithInvertedCollisionNormal = checkSquareSphereCollision(obj2, obj1);
         collisionDataWithInvertedCollisionNormal? collisionData = 
         {normal: {x: -collisionDataWithInvertedCollisionNormal?.x, y: -collisionDataWithInvertedCollisionNormal.y},
          location: collisionDataWithInvertedCollisionNormal.location } : null;
         
     }
+         */
+
+
     else {
         throw new Error("Invalid Object Type!");
     }
@@ -662,18 +678,18 @@ function checkSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type
 }
 
 function checkSquareSphereCollision(/** @type {DynamicObject} */  square, /** @type {DynamicObject} */ sphere) {
-    if (square.type != ObjectType.SQUARE || sphere.type != ObjectType.SPHERE) throw new Error("ObjectType mismatch!");
-        //TODO: Keep the vertices updated at different location (simulationloop?)
-        square.updateVertices();
-        const collisionLocation = checkPolyCircleCollision(square.vertices, {x: sphere.x, y: sphere.y, radius: sphere.size / 2});
-        if (collisionLocation) {
-            const distanceX = sphere.x - square.x;
-            const distanceY = sphere.y - square.y;
-            const distanceSquared = distanceX ** 2 + distanceY ** 2;
-            const distance = Math.sqrt(distanceSquared);
-            const collisionData = {normal: {x: distanceX / distance, y: distanceY / distance}, location: collisionLocation};
-            return collisionData;
-        } 
+    //if (square.type != ObjectType.SQUARE || sphere.type != ObjectType.SPHERE) throw new Error("ObjectType mismatch!");
+    //TODO: Keep the vertices updated at different location (simulationloop?)
+    square.updateVertices();
+    const collisionLocation = checkPolyCircleCollision(square.vertices, {x: sphere.x, y: sphere.y, radius: sphere.size / 2});
+    if (collisionLocation) {
+        const distanceX = sphere.x - square.x;
+        const distanceY = sphere.y - square.y;
+        const distanceSquared = distanceX ** 2 + distanceY ** 2;
+        const distance = Math.sqrt(distanceSquared);
+        const collisionData = {normal: {x: distanceX / distance, y: distanceY / distance}, location: collisionLocation};
+        return collisionData;
+    } 
     return null;
 }
 
