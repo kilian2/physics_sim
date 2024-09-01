@@ -664,15 +664,19 @@ function checkSquareSquareCollision(/** @type {DynamicObject} */ obj1, /** @type
     //TODO: Keep the vertices updated at different location (simulationloop?)
     obj1.updateVertices();
     obj2.updateVertices();
-    const collision = checkPolyPolyCollision(obj1.vertices, obj2.vertices);
-    let collisionData = /** @type {{normal: {x: number, y: number}, location: {x, y}} | null}*/ (null);
+    const cppcReturn = checkPolyPolyCollision(obj1.vertices, obj2.vertices);
+    let collisionData = /** @type {{normal: {x: number, y: number}, location: {x, y} } | null}*/ (null);
 
-    if(collision) {
+    if(cppcReturn) {
         const distanceX = obj2.x - obj1.x;
         const distanceY = obj2.y - obj1.y;
         const distanceSquared = distanceX ** 2 + distanceY ** 2;
         const distance = Math.sqrt(distanceSquared);
-        collisionData = {normal: {x: distanceX / distance, y: distanceY / distance}, location: collision};
+        const lineVector = {x: cppcReturn.collisionLine.p2X - cppcReturn.collisionLine.p1X,
+             y: cppcReturn.collisionLine.p2Y - cppcReturn.collisionLine.p1Y };
+        const lineVectorLength = Math.hypot(lineVector.x, lineVector.y);
+             const normal = {x: lineVector.y / lineVectorLength, y: -1*lineVector.x / lineVectorLength };
+             collisionData = {normal: normal, location: cppcReturn.collisionPoint};
     }
     return collisionData;
 }

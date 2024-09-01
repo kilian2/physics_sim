@@ -33,7 +33,8 @@ export function checkLineLineCollision (/** @type {Line} */ line1, /** @type {Li
     if (Math.abs(detA) < epsilon) {
         if (Math.abs((Math.min(x1, x2) - Math.min(x3, x4)) +
         (Math.min(y1, y2) - Math.min(y3, y4))) < epsilon) {
-            return undefined;
+            //TODO: check if this makes sense
+            return null;
         } else {
             return null;
         }
@@ -52,63 +53,6 @@ export function checkLineLineCollision (/** @type {Line} */ line1, /** @type {Li
     return {x: x, y: y};
 }
 
-export function checkLineLineCollisionConvoluted (/** @type {Line} */ line1, /** @type {Line} */ line2){
-    const {slope: a1, offset: b1} = getSlopeAndOffsetFromLine(line1);
-    const {slope: a2, offset: b2} = getSlopeAndOffsetFromLine(line2);
-    const p = getIntersectionPointForLineFunctions(a1, b1, a2, b2);
-    if(!p) {return null;}
-    const pointIsOnLine1 = isPointOnLine(p.x, p.y, line1);
-    const pointIsOnLine2 = isPointOnLine(p.x, p.y, line2);
-    return pointIsOnLine1 && pointIsOnLine2 ? p : null;
-}
-
-function isPointOnLine (px, py, /** @type {Line} */ line) {
-    const {slope: a, offset: b} = getSlopeAndOffsetFromLine(line);
-    let pointIsOnFunction = false;
-    if (!isFinite(a)) {
-        pointIsOnFunction = Math.abs(px - b) < epsilon;
-    } else {
-        pointIsOnFunction = Math.abs(a * px + b - py) < epsilon;
-    }
-    const xWithinLineSegment = px >= Math.min(line.p1X, line.p2X) && px <= Math.max(line.p1X, line.p2X);
-    const yWithinLineSegment = py >= Math.min(line.p1Y, line.p2Y) && py <= Math.max(line.p1Y, line.p2Y);
-    return pointIsOnFunction && xWithinLineSegment && yWithinLineSegment;
-}
-
-function getSlopeAndOffsetFromLine(/** @type {Line} */ line) {
-    const dx = line.p2X - line.p1X;
-    const dy = line.p2Y - line.p1Y;
-    if (Math.abs(dx) < epsilon) {
-        return {slope: Infinity, offset: line.p1X};
-    }
-    const slope = (line.p2Y - line.p1Y) / (line.p2X - line.p1X);
-    const offset = line.p1Y - slope * line.p1X;
-    return {slope: slope, offset: offset};
-}
-
-function getIntersectionPointForLineFunctions(a1, b1, a2, b2) {
-    if (Math.abs(b1 - b2) < epsilon && isFinite(a1) && isFinite(a2)) {
-        return {x: 0, y: b1};
-    }
-    if (!isFinite(a1) && !isFinite(a2)) {
-        if(Math.abs(b2-b1) < epsilon) {
-            return {x: b1, y: undefined};
-        }
-    }
-    if (!isFinite(a1)) {
-        return {x: b1, y: a2 * b1 + b2};
-    }
-    if(!isFinite(a2)) {
-        return {x: b2, y: a1 * b2 + b1};
-    }
-    if (Math.abs(a1 - a2) < epsilon) {return null;}
-
-    const x = (b2 - b1) / (a1 - a2);
-    const y = a1 * x + b1;
-    return {x: x, y: y};
-}
-
-
 export function rotatePoints( /** @type {Array<{x: number, y: number}>} */ points, radians, /** @type {{x, y}} */ origin) {
     const /** @type {Array<{x: number, y: number}>} */ rotatedPoints = [];
     const cosRad = Math.cos(radians);
@@ -125,9 +69,9 @@ export function checkPolyPolyCollision(/** @type {Array<{x, y}>} */ points1, /**
         const currentPoint = points1[i];
         const nextPoint = i < points1.length -1 ? points1[i + 1] : points1[0];
         const line = new Line(currentPoint.x, currentPoint.y, nextPoint.x, nextPoint.y);
-        const checkPolyPolyCollisionReturn = checkPolyLineCollision(points2, line);
-        if (checkPolyPolyCollisionReturn){
-            return checkPolyPolyCollisionReturn;
+        const checkPolyLineCollisionReturn = checkPolyLineCollision(points2, line);
+        if (checkPolyLineCollisionReturn){
+            return {collisionPoint: checkPolyLineCollisionReturn, collisionLine: line};
         }
         //TODO: check if one polygon is in the other polygon
     }
